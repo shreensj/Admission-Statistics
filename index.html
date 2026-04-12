@@ -1,0 +1,1490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Computer Institute — Data Entry System</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+
+<!-- SheetJS for Excel export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+  :root {
+    --navy:    #0F2443;
+    --blue:    #1A5CB8;
+    --sky:     #3B9EFF;
+    --teal:    #0EA8A8;
+    --green:   #1D9A6C;
+    --amber:   #F59E0B;
+    --red:     #E53E3E;
+    --paper:   #F5F7FC;
+    --surface: #FFFFFF;
+    --border:  #D8E2F0;
+    --text:    #1A2540;
+    --muted:   #6B7A99;
+    --tag-bg:  #EBF2FF;
+    --shadow:  0 4px 24px rgba(15,36,67,.10);
+    --radius:  14px;
+    --font:    'Plus Jakarta Sans', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font);
+    background: var(--paper);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── top bar */
+  .topbar {
+    background: var(--navy);
+    padding: 0 32px;
+    display: flex; align-items: center; justify-content: space-between;
+    height: 60px;
+    position: sticky; top: 0; z-index: 100;
+    box-shadow: 0 2px 16px rgba(0,0,0,.25);
+  }
+  .topbar-brand { display: flex; align-items: center; gap: 12px; }
+  .topbar-icon {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--sky), var(--teal));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .topbar-title { font-weight: 800; font-size: 17px; color: #fff; letter-spacing: -.3px; }
+  .topbar-sub   { font-size: 11px; color: rgba(255,255,255,.5); font-weight: 300; }
+  .topbar-right { display: flex; align-items: center; gap: 14px; }
+  .topbar-date  { font-size: 12px; color: rgba(255,255,255,.6); }
+  .firebase-status {
+    font-size: 11px; padding: 4px 10px; border-radius: 20px;
+    font-weight: 600; display: flex; align-items: center; gap: 5px;
+  }
+  .firebase-status.connected    { background: rgba(29,154,108,.25); color: #4DDFAA; }
+  .firebase-status.disconnected { background: rgba(229,62,62,.25);  color: #FF8080; }
+  .firebase-status.syncing      { background: rgba(59,158,255,.25); color: #7DC8FF; }
+
+  /* ── nav tabs */
+  .nav-wrap {
+    background: var(--surface);
+    border-bottom: 2px solid var(--border);
+    padding: 0 32px;
+    display: flex; gap: 4px; overflow-x: auto;
+  }
+  .nav-tab {
+    padding: 14px 22px;
+    font-weight: 700; font-size: 13px;
+    color: var(--muted);
+    border: none; background: none; cursor: pointer;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px; white-space: nowrap;
+    transition: all .2s;
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--font);
+  }
+  .nav-tab:hover { color: var(--blue); }
+  .nav-tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+  .nav-badge {
+    background: var(--tag-bg); color: var(--blue);
+    border-radius: 20px; padding: 2px 8px;
+    font-size: 10px; font-weight: 600;
+  }
+
+  /* ── main layout */
+  .main { max-width: 980px; margin: 36px auto; padding: 0 24px; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* ── form card */
+  .form-card {
+    background: var(--surface); border-radius: var(--radius);
+    box-shadow: var(--shadow); overflow: hidden; border: 1px solid var(--border);
+  }
+  .form-header {
+    padding: 28px 32px 20px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: flex-start; gap: 16px;
+  }
+  .form-header-icon {
+    width: 48px; height: 48px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; flex-shrink: 0;
+  }
+  .icon-blue  { background: linear-gradient(135deg,#EBF2FF,#C3D9FF); }
+  .icon-green { background: linear-gradient(135deg,#E8FBF4,#BFECD8); }
+  .icon-amber { background: linear-gradient(135deg,#FEF9E7,#FDEDC0); }
+  .icon-teal  { background: linear-gradient(135deg,#E6FAFA,#B8EEEE); }
+  .form-title { font-weight: 800; font-size: 20px; color: var(--navy); line-height: 1.2; }
+  .form-desc  { font-size: 13px; color: var(--muted); margin-top: 4px; font-weight: 400; }
+
+  /* ── fields */
+  .form-body { padding: 28px 32px; }
+  .section-label {
+    font-weight: 700; font-size: 11px; color: var(--blue);
+    letter-spacing: 1.2px; text-transform: uppercase;
+    margin: 0 0 16px; padding-bottom: 8px;
+    border-bottom: 1px dashed var(--border);
+  }
+  .fields-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 24px; margin-bottom: 28px; }
+  .fields-grid.three { grid-template-columns: 1fr 1fr 1fr; }
+  .field-full { grid-column: 1 / -1; }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label { font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: .3px; }
+  .field label span.req { color: var(--red); margin-left: 2px; }
+  .field input, .field select, .field textarea {
+    padding: 11px 14px; border: 1.5px solid var(--border);
+    border-radius: 9px; font-family: var(--font); font-size: 13.5px;
+    color: var(--text); background: var(--surface);
+    transition: border-color .2s, box-shadow .2s; outline: none;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus {
+    border-color: var(--sky); box-shadow: 0 0 0 3px rgba(59,158,255,.12);
+  }
+  .field input::placeholder { color: #B0BAD0; }
+  .field textarea { resize: vertical; min-height: 80px; }
+  .field.error input, .field.error select, .field.error textarea {
+    border-color: var(--red); box-shadow: 0 0 0 3px rgba(229,62,62,.10);
+  }
+  .field .err-msg { font-size: 11px; color: var(--red); display: none; }
+  .field.error .err-msg { display: block; }
+
+  /* ── buttons */
+  .form-actions {
+    padding: 20px 32px 28px; display: flex; align-items: center; gap: 12px;
+    border-top: 1px solid var(--border); background: #FAFBFF;
+  }
+  .btn {
+    padding: 11px 22px; border-radius: 9px;
+    font-family: var(--font); font-weight: 700; font-size: 13px;
+    cursor: pointer; border: none; transition: all .2s;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--blue), var(--sky)); color: #fff;
+    box-shadow: 0 4px 14px rgba(26,92,184,.35);
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(26,92,184,.45); }
+  .btn-ghost  { background: transparent; color: var(--muted); border: 1.5px solid var(--border); }
+  .btn-ghost:hover { background: var(--paper); color: var(--text); }
+  .btn-green  {
+    background: linear-gradient(135deg, var(--green), #2DC28E); color: #fff;
+    box-shadow: 0 4px 14px rgba(29,154,108,.35);
+  }
+  .btn-green:hover { transform: translateY(-1px); }
+  .btn-orange {
+    background: linear-gradient(135deg,#F59E0B,#FBBF24); color: #fff;
+    box-shadow: 0 4px 14px rgba(245,158,11,.35);
+  }
+  .btn-red {
+    background: linear-gradient(135deg,#E53E3E,#FC8181); color: #fff;
+    box-shadow: 0 4px 14px rgba(229,62,62,.3);
+  }
+  .btn-sm { padding: 7px 14px; font-size: 12px; border-radius: 7px; }
+
+  /* ── toast */
+  .toast {
+    position: fixed; bottom: 30px; right: 30px;
+    background: var(--navy); color: #fff;
+    padding: 14px 22px; border-radius: 12px;
+    font-size: 13px; font-weight: 500;
+    display: flex; align-items: center; gap: 10px;
+    box-shadow: 0 8px 30px rgba(0,0,0,.25);
+    transform: translateY(80px); opacity: 0;
+    transition: all .35s cubic-bezier(.34,1.56,.64,1); z-index: 999;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast-icon {
+    width: 28px; height: 28px;
+    background: linear-gradient(135deg,var(--green),#2DC28E);
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 14px; flex-shrink: 0;
+  }
+
+  /* ── tables */
+  .table-wrap {
+    margin-top: 32px; background: var(--surface);
+    border-radius: var(--radius); box-shadow: var(--shadow);
+    border: 1px solid var(--border); overflow: hidden;
+  }
+  .table-header {
+    padding: 16px 22px; display: flex; align-items: center;
+    justify-content: space-between; border-bottom: 1px solid var(--border);
+    flex-wrap: wrap; gap: 10px;
+  }
+  .table-title { font-weight: 700; font-size: 15px; }
+  .record-count {
+    background: var(--tag-bg); color: var(--blue);
+    border-radius: 20px; padding: 3px 12px;
+    font-size: 12px; font-weight: 700;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  thead th {
+    background: #F0F5FF; padding: 11px 16px; text-align: left;
+    font-weight: 700; font-size: 11px; color: var(--blue);
+    letter-spacing: .5px; text-transform: uppercase;
+    border-bottom: 1px solid var(--border); white-space: nowrap;
+    font-family: var(--font);
+  }
+  tbody tr { border-bottom: 1px solid #F0F4FB; transition: background .15s; }
+  tbody tr:hover { background: #F6F9FF; }
+  tbody td { padding: 11px 16px; color: var(--text); vertical-align: middle; }
+  tbody td:empty::after { content: '—'; color: #C0C8D8; }
+
+  .pill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+  .pill-green { background: #E8FBF4; color: #1D9A6C; }
+  .pill-red   { background: #FEE8E8; color: #C53030; }
+  .pill-amber { background: #FEF3CD; color: #92630A; }
+  .pill-blue  { background: #EBF2FF; color: #1A5CB8; }
+  .pill-gray  { background: #EEF1F7; color: #5A6478; }
+
+  .del-btn {
+    background: none; border: none; color: #CBD2DF;
+    cursor: pointer; font-size: 16px; padding: 4px; border-radius: 6px; transition: all .15s;
+  }
+  .del-btn:hover { color: var(--red); background: #FEE8E8; }
+
+  /* ── dashboard */
+  .kpi-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; margin-bottom: 24px; }
+  .kpi-card {
+    background: var(--surface); border-radius: var(--radius);
+    border: 1px solid var(--border); box-shadow: var(--shadow);
+    padding: 20px 22px; position: relative; overflow: hidden;
+  }
+  .kpi-card::after { content:''; position:absolute; bottom:0; left:0; right:0; height:3px; }
+  .kpi-blue::after  { background: linear-gradient(90deg,var(--blue),var(--sky)); }
+  .kpi-green::after { background: linear-gradient(90deg,var(--green),#2DC28E); }
+  .kpi-amber::after { background: linear-gradient(90deg,var(--amber),#FBBF24); }
+  .kpi-red::after   { background: linear-gradient(90deg,var(--red),#FC8181); }
+  .kpi-icon  { font-size: 26px; margin-bottom: 10px; }
+  .kpi-val   { font-weight: 800; font-size: 26px; line-height: 1; color: var(--navy); }
+  .kpi-label { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  /* ── month filter bar */
+  .month-filter-bar {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 18px; flex-wrap: wrap;
+  }
+  .month-filter-label { font-weight: 700; font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .month-chips { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; }
+  .month-chip {
+    padding: 5px 14px; border-radius: 20px; font-size: 12px; font-weight: 600;
+    border: 1.5px solid var(--border); background: var(--surface); color: var(--muted);
+    cursor: pointer; transition: all .18s; font-family: var(--font);
+  }
+  .month-chip:hover { border-color: var(--blue); color: var(--blue); }
+  .month-chip.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+  .month-chip.all { background: var(--navy); color: #fff; border-color: var(--navy); }
+
+  /* ── pending card */
+  .pending-card {
+    background: var(--surface); border-radius: var(--radius);
+    box-shadow: var(--shadow); border: 1px solid var(--border); overflow: hidden;
+  }
+  .pending-card-header {
+    padding: 16px 22px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
+  }
+  .pending-card-title { font-weight: 700; font-size: 15px; }
+  .pending-card-actions { display: flex; gap: 8px; }
+  .pending-row {
+    display: flex; align-items: center; padding: 14px 22px;
+    border-bottom: 1px solid #F0F4FB; gap: 14px; transition: background .15s;
+  }
+  .pending-row:hover { background: #F6F9FF; }
+  .pending-row:last-child { border-bottom: none; }
+  .avatar {
+    width: 38px; height: 38px; border-radius: 50%;
+    background: linear-gradient(135deg,var(--sky),var(--teal));
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 14px; color: #fff; flex-shrink: 0;
+  }
+  .pending-info { flex: 1; }
+  .pending-name   { font-weight: 600; font-size: 13.5px; }
+  .pending-course { font-size: 11px; color: var(--muted); }
+  .pending-amt    { font-weight: 800; font-size: 15px; color: var(--red); }
+
+  /* ── progress bar */
+  .progress-bar-bg   { background: #EEF1F7; border-radius: 20px; height: 8px; overflow: hidden; margin-top: 4px; }
+  .progress-bar-fill { height: 100%; border-radius: 20px; background: linear-gradient(90deg,var(--green),#2DC28E); transition: width .8s ease; }
+  .progress-label    { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  /* ── export note */
+  .export-note {
+    margin-top: 20px; background: linear-gradient(135deg,#EBF2FF,#E0F7FA);
+    border: 1px solid #C3D9FF; border-radius: 12px; padding: 18px 22px;
+    display: flex; gap: 14px; align-items: flex-start;
+  }
+  .export-note-icon  { font-size: 24px; flex-shrink: 0; }
+  .export-note-title { font-weight: 700; font-size: 14px; margin-bottom: 6px; }
+  .export-note-text  { font-size: 12.5px; color: var(--muted); line-height: 1.6; }
+
+  /* ── print styles */
+  @media print {
+    .topbar, .nav-wrap, .form-actions, .del-btn,
+    .month-filter-bar, .pending-card-actions,
+    .export-note, .no-print { display: none !important; }
+    .main { margin: 0; padding: 0; max-width: 100%; }
+    .panel { display: block !important; }
+    .panel:not(#panel-dashboard) { display: none !important; }
+    .pending-card { box-shadow: none; border: 1px solid #ccc; }
+    body { background: #fff; font-size: 11px; }
+    .print-header {
+      display: block !important;
+      text-align: center; margin-bottom: 16px;
+      font-size: 16px; font-weight: 800; color: #000;
+    }
+    .print-sub { display: block !important; text-align: center; font-size: 11px; color: #555; margin-bottom: 8px; }
+    table { font-size: 10px; }
+    thead th { background: #f0f0f0 !important; -webkit-print-color-adjust: exact; }
+    .kpi-row { display: none; }
+  }
+  .print-header, .print-sub { display: none; }
+
+  /* ── sync loader */
+  .sync-overlay {
+    position: fixed; inset: 0; background: rgba(15,36,67,.6);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 9999; opacity: 0; pointer-events: none; transition: opacity .3s;
+  }
+  .sync-overlay.show { opacity: 1; pointer-events: all; }
+  .sync-box {
+    background: #fff; border-radius: 16px; padding: 32px 40px;
+    text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,.3);
+  }
+  .sync-spinner {
+    width: 44px; height: 44px; border: 4px solid #D8E2F0;
+    border-top-color: var(--blue); border-radius: 50%;
+    animation: spin .7s linear infinite; margin: 0 auto 16px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .sync-msg { font-weight: 600; font-size: 14px; color: var(--navy); }
+
+  @media (max-width: 640px) {
+    .fields-grid, .fields-grid.three { grid-template-columns: 1fr; }
+    .field-full { grid-column: 1; }
+    .kpi-row { grid-template-columns: 1fr 1fr; }
+    .main { padding: 0 12px; margin: 20px auto; }
+    .form-body, .form-header, .form-actions { padding-left: 18px; padding-right: 18px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Sync overlay -->
+<div class="sync-overlay" id="syncOverlay">
+  <div class="sync-box">
+    <div class="sync-spinner"></div>
+    <div class="sync-msg" id="syncMsg">Syncing with Firebase…</div>
+  </div>
+</div>
+
+<!-- Top Bar -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <div class="topbar-icon">🎓</div>
+    <div>
+      <div class="topbar-title">Computer Institute</div>
+      <div class="topbar-sub">Data Entry & Management System</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div class="firebase-status disconnected" id="fbStatus">⚡ Connecting…</div>
+    <div class="topbar-date" id="topDate"></div>
+  </div>
+</div>
+
+<!-- Nav Tabs -->
+<div class="nav-wrap">
+  <button class="nav-tab active" onclick="switchTab('dashboard',this)">📊 Dashboard</button>
+  <button class="nav-tab" onclick="switchTab('student',this)">👤 Add Student</button>
+  <button class="nav-tab" onclick="switchTab('receipt',this)">💰 Add Receipt</button>
+  <button class="nav-tab" onclick="switchTab('fees',this)">📋 Fees Details</button>
+  <button class="nav-tab" onclick="switchTab('records',this)">🗃️ All Records <span class="nav-badge" id="totalBadge">0</span></button>
+</div>
+
+<div class="main">
+
+<!-- ═══════════ DASHBOARD ═══════════ -->
+<div class="panel active" id="panel-dashboard">
+
+  <!-- Print header (hidden on screen) -->
+  <div class="print-header">Computer Institute — Fees Pendancy Report</div>
+  <div class="print-sub" id="printSub"></div>
+
+  <!-- KPI Cards -->
+  <div class="kpi-row no-print">
+    <div class="kpi-card kpi-blue">
+      <div class="kpi-icon">👥</div>
+      <div class="kpi-val" id="kpi-students">0</div>
+      <div class="kpi-label">Total Students</div>
+    </div>
+    <div class="kpi-card kpi-green">
+      <div class="kpi-icon">✅</div>
+      <div class="kpi-val" id="kpi-collected">₹0</div>
+      <div class="kpi-label">Total Collected</div>
+    </div>
+    <div class="kpi-card kpi-red">
+      <div class="kpi-icon">⏳</div>
+      <div class="kpi-val" id="kpi-pending">₹0</div>
+      <div class="kpi-label">Total Pending</div>
+    </div>
+    <div class="kpi-card kpi-amber">
+      <div class="kpi-icon">💵</div>
+      <div class="kpi-val" id="kpi-total">₹0</div>
+      <div class="kpi-label">Total Fees</div>
+    </div>
+  </div>
+
+  <!-- Month Filter Bar -->
+  <div class="month-filter-bar no-print">
+    <span class="month-filter-label">📅 Filter by Month:</span>
+    <div class="month-chips" id="monthChips">
+      <button class="month-chip all active" onclick="setMonthFilter('all',this)">All Months</button>
+    </div>
+  </div>
+
+  <!-- Pending Fees Card -->
+  <div class="pending-card">
+    <div class="pending-card-header">
+      <span class="pending-card-title">⚠️ Students with Pending Fees</span>
+      <div class="pending-card-actions no-print">
+        <button class="btn btn-sm btn-green" onclick="exportPendancyExcel()">📊 Export Excel</button>
+        <button class="btn btn-sm btn-primary" onclick="printPendancyReport()">🖨️ Print Report</button>
+      </div>
+    </div>
+    <div id="pendingList"></div>
+
+    <!-- Pending table (for print & export) -->
+    <div style="overflow-x:auto">
+      <table id="pendancyTable" style="display:none">
+        <thead>
+          <tr>
+            <th>#</th><th>Form No</th><th>Student Name</th><th>Course</th>
+            <th>Adm. Date</th><th>Contact</th><th>Total Fees (₹)</th>
+            <th>Paid (₹)</th><th>Pending (₹)</th><th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="pendancyTbody"></tbody>
+        <tfoot id="pendancyFoot"></tfoot>
+      </table>
+    </div>
+
+    <div style="padding:18px 22px; border-top:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:6px;">
+        <span>Collection Progress</span><span id="progressPct">0%</span>
+      </div>
+      <div class="progress-bar-bg">
+        <div class="progress-bar-fill" id="progressBar" style="width:0%"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="export-note no-print">
+    <div class="export-note-icon">💡</div>
+    <div>
+      <div class="export-note-title">Data is saved to Firebase</div>
+      <div class="export-note-text">
+        All student and receipt data is automatically synced to Firebase Firestore. Use <strong>Export Excel</strong> or <strong>Print Report</strong> buttons above for the fees pendancy report.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ ADD STUDENT ═══════════ -->
+<div class="panel" id="panel-student">
+<div class="form-card">
+  <div class="form-header">
+    <div class="form-header-icon icon-blue">👤</div>
+    <div>
+      <div class="form-title">New Student Admission</div>
+      <div class="form-desc">Fill in complete student details. Roll number is auto-generated.</div>
+    </div>
+  </div>
+  <div class="form-body">
+    <div class="section-label">Personal Information</div>
+    <div class="fields-grid">
+      <div class="field">
+        <label>Roll Number (Auto)</label>
+        <input type="text" id="s_roll" readonly placeholder="Auto-generated" style="background:#F5F7FC;color:var(--muted)">
+      </div>
+      <div class="field">
+        <label>Form No (Auto)</label>
+        <input type="text" id="s_form" readonly placeholder="Select Course Type first" style="background:#F5F7FC;color:var(--muted)">
+      </div>
+      <div class="field field-full">
+        <label>Full Name <span class="req">*</span></label>
+        <input type="text" id="s_name" placeholder="e.g. Rahul Suresh Patil">
+        <span class="err-msg">Please enter student name</span>
+      </div>
+      <div class="field field-full">
+        <label>Address <span class="req">*</span></label>
+        <textarea id="s_addr" placeholder="Full address with area and city"></textarea>
+        <span class="err-msg">Please enter address</span>
+      </div>
+      <div class="field">
+        <label>Date of Birth <span class="req">*</span></label>
+        <input type="date" id="s_dob">
+        <span class="err-msg">Please select date of birth</span>
+      </div>
+      <div class="field">
+        <label>Contact Number <span class="req">*</span></label>
+        <input type="tel" id="s_contact" placeholder="10-digit mobile number" maxlength="10">
+        <span class="err-msg">Enter valid 10-digit number</span>
+      </div>
+    </div>
+    <div class="section-label">Admission & Course Details</div>
+    <div class="fields-grid">
+      <div class="field">
+        <label>Admission Date <span class="req">*</span></label>
+        <input type="date" id="s_admdate">
+        <span class="err-msg">Please select admission date</span>
+      </div>
+      <div class="field">
+        <label>Course Type <span class="req">*</span></label>
+        <select id="s_ctype">
+          <option value="">— Select Type —</option>
+          <option>Computer</option><option>Typing</option><option>Tally</option>
+          <option>DTP</option><option>Hardware</option><option>Other</option>
+        </select>
+        <span class="err-msg">Please select course type</span>
+      </div>
+      <div class="field">
+        <label>1st Course</label>
+        <select id="s_c1">
+          <option value="">— Select Course —</option>
+          <option>MS-Office</option><option>MS-CIT</option>
+          <option>English Typing (Com)</option><option>Marathi Typing (Com)</option>
+          <option>Tally ERP 9</option><option>Tally Prime</option>
+          <option>DTP (PageMaker)</option><option>Hardware & Networking</option>
+          <option>C / C++</option><option>Python</option><option>Web Design</option><option>Other</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>2nd Course</label>
+        <select id="s_c2">
+          <option value="">— None —</option>
+          <option>MS-Office</option><option>MS-CIT</option>
+          <option>English Typing (Com)</option><option>Marathi Typing (Com)</option>
+          <option>Tally ERP 9</option><option>Tally Prime</option><option>Other</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>3rd Course</label>
+        <select id="s_c3">
+          <option value="">— None —</option>
+          <option>MS-Office</option><option>MS-CIT</option>
+          <option>English Typing (Com)</option><option>Marathi Typing (Com)</option>
+          <option>Tally ERP 9</option><option>Other</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Total Fees (₹) <span class="req">*</span></label>
+        <input type="number" id="s_fees" placeholder="e.g. 2500" min="0">
+        <span class="err-msg">Please enter valid total fees</span>
+      </div>
+    </div>
+  </div>
+  <div class="form-actions">
+    <button class="btn btn-primary" onclick="saveStudent()">✅ Save Student</button>
+    <button class="btn btn-ghost" onclick="clearForm('student')">🔄 Clear</button>
+  </div>
+</div>
+<div class="table-wrap">
+  <div class="table-header">
+    <span class="table-title">Registered Students</span>
+    <span class="record-count" id="studentCount">0</span>
+  </div>
+  <div style="overflow-x:auto">
+  <table>
+    <thead><tr>
+      <th>Form No</th><th>Name</th><th>Course</th><th>Admitted</th>
+      <th>Total (₹)</th><th>Paid (₹)</th><th>Pending (₹)</th><th>Status</th><th></th>
+    </tr></thead>
+    <tbody id="studentTbody"></tbody>
+  </table>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════ ADD RECEIPT ═══════════ -->
+<div class="panel" id="panel-receipt">
+<div class="form-card">
+  <div class="form-header">
+    <div class="form-header-icon icon-green">💰</div>
+    <div>
+      <div class="form-title">Fee Receipt Entry</div>
+      <div class="form-desc">Record every payment. Receipt number is auto-generated.</div>
+    </div>
+  </div>
+  <div class="form-body">
+    <div class="section-label">Receipt Details</div>
+    <div class="fields-grid three">
+      <div class="field">
+        <label>Receipt No (Auto)</label>
+        <input type="text" id="r_no" readonly style="background:#F5F7FC;color:var(--muted)">
+      </div>
+      <div class="field">
+        <label>Receipt Date <span class="req">*</span></label>
+        <input type="date" id="r_date">
+        <span class="err-msg">Please select date</span>
+      </div>
+      <div class="field">
+        <label>Payment Mode <span class="req">*</span></label>
+        <select id="r_mode">
+          <option value="">— Select —</option>
+          <option>Cash</option><option>Online</option><option>UPI</option>
+          <option>Cheque</option><option>DD</option>
+        </select>
+        <span class="err-msg">Select payment mode</span>
+      </div>
+    </div>
+    <div class="section-label">Student & Payment Info</div>
+    <div class="fields-grid">
+      <div class="field">
+        <label>Form No <span class="req">*</span></label>
+        <select id="r_form" onchange="fillStudentFromForm()">
+          <option value="">— Select Student —</option>
+        </select>
+        <span class="err-msg">Please select student</span>
+      </div>
+      <div class="field">
+        <label>Student Name</label>
+        <input type="text" id="r_name" readonly style="background:#F5F7FC">
+      </div>
+      <div class="field">
+        <label>Course Name</label>
+        <input type="text" id="r_course" readonly style="background:#F5F7FC">
+      </div>
+      <div class="field">
+        <label>Amount (₹) <span class="req">*</span></label>
+        <input type="number" id="r_amount" placeholder="Amount received" min="1">
+        <span class="err-msg">Please enter amount</span>
+      </div>
+      <div class="field">
+        <label>Fees Type <span class="req">*</span></label>
+        <select id="r_ftype">
+          <option value="">— Select —</option>
+          <option>Course Fee</option><option>Admission Fee</option>
+          <option>Exam Fee</option><option>Certificate Fee</option><option>Other</option>
+        </select>
+        <span class="err-msg">Select fees type</span>
+      </div>
+      <div class="field">
+        <label>Next Instalment Date</label>
+        <input type="date" id="r_next">
+      </div>
+      <div class="field">
+        <label>Remarks</label>
+        <input type="text" id="r_remarks" placeholder="Optional note">
+      </div>
+    </div>
+  </div>
+  <div class="form-actions">
+    <button class="btn btn-green" onclick="saveReceipt()">✅ Save Receipt</button>
+    <button class="btn btn-ghost" onclick="clearForm('receipt')">🔄 Clear</button>
+  </div>
+</div>
+<div class="table-wrap">
+  <div class="table-header">
+    <span class="table-title">Receipt History</span>
+    <span class="record-count" id="receiptCount">0</span>
+  </div>
+  <div style="overflow-x:auto">
+  <table>
+    <thead><tr>
+      <th>Receipt No</th><th>Form No</th><th>Student</th>
+      <th>Date</th><th>Amount (₹)</th><th>Mode</th><th>Type</th><th></th>
+    </tr></thead>
+    <tbody id="receiptTbody"></tbody>
+  </table>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════ FEES DETAILS ═══════════ -->
+<div class="panel" id="panel-fees">
+<div class="form-card">
+  <div class="form-header">
+    <div class="form-header-icon icon-amber">📋</div>
+    <div>
+      <div class="form-title">Instalment Payment Entry</div>
+      <div class="form-desc">Record instalment-wise payments. Balance updates automatically.</div>
+    </div>
+  </div>
+  <div class="form-body">
+    <div class="section-label">Select Student</div>
+    <div class="fields-grid">
+      <div class="field">
+        <label>Form No <span class="req">*</span></label>
+        <select id="f_form" onchange="fillFeesFromForm()">
+          <option value="">— Select Student —</option>
+        </select>
+        <span class="err-msg">Please select student</span>
+      </div>
+      <div class="field">
+        <label>Student Name</label>
+        <input type="text" id="f_name" readonly style="background:#F5F7FC">
+      </div>
+      <div class="field">
+        <label>Total Fees (₹)</label>
+        <input type="text" id="f_total" readonly style="background:#F5F7FC;font-weight:600">
+      </div>
+      <div class="field">
+        <label>Already Paid (₹)</label>
+        <input type="text" id="f_paid" readonly style="background:#F5F7FC;color:var(--green);font-weight:600">
+      </div>
+    </div>
+    <div class="section-label">Add Instalment</div>
+    <div class="fields-grid three">
+      <div class="field">
+        <label>Instalment Number <span class="req">*</span></label>
+        <select id="f_inst_no">
+          <option value="">— Select —</option>
+          <option value="1">1st Instalment</option><option value="2">2nd Instalment</option>
+          <option value="3">3rd Instalment</option><option value="4">4th Instalment</option>
+          <option value="5">5th Instalment</option><option value="6">6th Instalment</option>
+          <option value="7">7th Instalment</option><option value="8">8th Instalment</option>
+        </select>
+        <span class="err-msg">Select instalment number</span>
+      </div>
+      <div class="field">
+        <label>Amount (₹) <span class="req">*</span></label>
+        <input type="number" id="f_inst_amt" placeholder="e.g. 500" min="1">
+        <span class="err-msg">Enter amount</span>
+      </div>
+      <div class="field">
+        <label>Payment Date <span class="req">*</span></label>
+        <input type="date" id="f_inst_date">
+        <span class="err-msg">Select date</span>
+      </div>
+    </div>
+  </div>
+  <div class="form-actions">
+    <button class="btn btn-primary" onclick="saveInstalment()">✅ Save Instalment</button>
+    <button class="btn btn-ghost" onclick="clearForm('fees')">🔄 Clear</button>
+  </div>
+</div>
+<div class="table-wrap">
+  <div class="table-header">
+    <span class="table-title">Instalment-wise Summary</span>
+  </div>
+  <div style="overflow-x:auto">
+  <table>
+    <thead><tr>
+      <th>Roll No</th><th>Student Name</th><th>Total (₹)</th>
+      <th>I1</th><th>I2</th><th>I3</th><th>I4</th>
+      <th>Paid (₹)</th><th>Balance (₹)</th><th>Status</th>
+    </tr></thead>
+    <tbody id="feesTbody"></tbody>
+  </table>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════ ALL RECORDS ═══════════ -->
+<div class="panel" id="panel-records">
+  <div style="display:flex;gap:14px;margin-bottom:20px;flex-wrap:wrap">
+    <button class="btn btn-primary" onclick="exportCSV('students')">⬇️ Export Students CSV</button>
+    <button class="btn btn-green"   onclick="exportCSV('receipts')">⬇️ Export Receipts CSV</button>
+    <button class="btn btn-orange"  onclick="exportCSV('fees')">⬇️ Export Fees CSV</button>
+  </div>
+  <div class="table-wrap">
+    <div class="table-header">
+      <span class="table-title">All Students</span>
+      <span class="record-count" id="allStudentCount">0</span>
+    </div>
+    <div style="overflow-x:auto">
+    <table>
+      <thead><tr>
+        <th>Form No</th><th>Name</th><th>Contact</th><th>Course</th>
+        <th>Admitted</th><th>Total (₹)</th><th>Paid (₹)</th><th>Pending (₹)</th><th>Status</th>
+      </tr></thead>
+      <tbody id="allStudentTbody"></tbody>
+    </table>
+    </div>
+  </div>
+  <div class="table-wrap" style="margin-top:24px">
+    <div class="table-header">
+      <span class="table-title">All Receipts</span>
+      <span class="record-count" id="allReceiptCount">0</span>
+    </div>
+    <div style="overflow-x:auto">
+    <table>
+      <thead><tr>
+        <th>Receipt No</th><th>Form No</th><th>Student</th>
+        <th>Date</th><th>Amount (₹)</th><th>Mode</th><th>Type</th>
+      </tr></thead>
+      <tbody id="allReceiptTbody"></tbody>
+    </table>
+    </div>
+  </div>
+</div>
+
+</div><!-- /main -->
+
+<!-- Toast -->
+<div class="toast" id="toast">
+  <div class="toast-icon">✓</div>
+  <span id="toastMsg">Saved successfully!</span>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════
+// FIREBASE INIT
+// ══════════════════════════════════════════════════════════════════
+let db;
+try {
+  firebase.initializeApp(window.FIREBASE_CONFIG);
+  db = firebase.firestore();
+  document.getElementById('fbStatus').className = 'firebase-status syncing';
+  document.getElementById('fbStatus').textContent = '🔄 Syncing…';
+} catch(e) {
+  console.error('Firebase init error:', e);
+  document.getElementById('fbStatus').className = 'firebase-status disconnected';
+  document.getElementById('fbStatus').textContent = '❌ Offline';
+}
+
+// ── DATA STORE ────────────────────────────────────────────────────
+let students    = [];
+let receipts    = [];
+let feesDetails = [];
+let activeMonth = 'all';
+
+// ── SYNC HELPERS ──────────────────────────────────────────────────
+function showSync(msg='Syncing…') {
+  document.getElementById('syncMsg').textContent = msg;
+  document.getElementById('syncOverlay').classList.add('show');
+}
+function hideSync() { document.getElementById('syncOverlay').classList.remove('show'); }
+
+async function fbSave(col, docId, data) {
+  if(!db) return;
+  try { await db.collection(col).doc(docId).set(data); } catch(e) { console.error(e); }
+}
+async function fbDelete(col, docId) {
+  if(!db) return;
+  try { await db.collection(col).doc(docId).delete(); } catch(e) { console.error(e); }
+}
+
+// ── FIREBASE REAL-TIME LISTENERS ──────────────────────────────────
+function startListeners() {
+  if(!db) { hideSync(); return; }
+
+  // Students
+  db.collection('students').orderBy('srNo').onSnapshot(snap => {
+    students = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    // rebuild feesDetails from students
+    feesDetails = students.map(s => ({
+      roll: s.formNo, name: s.name,
+      i: s.instalments || [0,0,0,0,0,0,0,0],
+      total: s.totalFees
+    }));
+    refreshAll();
+    buildMonthChips();
+    document.getElementById('fbStatus').className = 'firebase-status connected';
+    document.getElementById('fbStatus').textContent = '✅ Live';
+    hideSync();
+  }, err => {
+    console.error(err);
+    document.getElementById('fbStatus').className = 'firebase-status disconnected';
+    document.getElementById('fbStatus').textContent = '❌ Error';
+    hideSync();
+  });
+
+  // Receipts
+  db.collection('receipts').orderBy('no').onSnapshot(snap => {
+    receipts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    refreshAll();
+  }, err => console.error(err));
+}
+
+// ══════════════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  const now = new Date();
+  document.getElementById('topDate').textContent =
+    now.toLocaleDateString('en-IN', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+
+  const today = now.toISOString().split('T')[0];
+  ['r_date','r_next','f_inst_date','s_admdate'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.value = today;
+  });
+
+  showSync('Loading data from Firebase…');
+  startListeners();
+  initRollNumbers();
+  setupCtypeListener();
+});
+
+function setupCtypeListener() {
+  document.getElementById('s_ctype').addEventListener('change', () => {
+    const t   = document.getElementById('s_ctype').value;
+    const maxRoll = students.length ? Math.max(...students.map(s=>s.roll)) : 1000;
+    const prefix = t==='Computer'?'C': t==='Typing'?'T': t.charAt(0).toUpperCase();
+    document.getElementById('s_form').value = prefix + (maxRoll + 1);
+  });
+}
+
+function initRollNumbers() {
+  const maxRoll = students.length ? Math.max(...students.map(s=>s.roll)) : 1000;
+  document.getElementById('s_roll').value = maxRoll + 1;
+  const maxRec = receipts.length ? Math.max(...receipts.map(r=>r.no)) : 275;
+  document.getElementById('r_no').value = maxRec + 1;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// MONTH FILTER
+// ══════════════════════════════════════════════════════════════════
+function buildMonthChips() {
+  const months = [...new Set(students.map(s => s.month).filter(Boolean))].sort();
+  const wrap = document.getElementById('monthChips');
+  wrap.innerHTML = `<button class="month-chip ${activeMonth==='all'?'all active':''}" onclick="setMonthFilter('all',this)">All Months</button>`;
+  months.forEach(m => {
+    const active = activeMonth === m ? 'active' : '';
+    wrap.innerHTML += `<button class="month-chip ${active}" onclick="setMonthFilter('${m}',this)">${m}</button>`;
+  });
+}
+
+function setMonthFilter(month, btn) {
+  activeMonth = month;
+  document.querySelectorAll('.month-chip').forEach(c => c.classList.remove('active','all'));
+  btn.classList.add('active');
+  if(month === 'all') btn.classList.add('all');
+  renderDashboard();
+}
+
+function filteredStudents() {
+  if(activeMonth === 'all') return students;
+  return students.filter(s => s.month === activeMonth);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// TAB SWITCHING
+// ══════════════════════════════════════════════════════════════════
+function switchTab(name, btn) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+  if(btn) btn.classList.add('active');
+  refreshAll();
+}
+
+function refreshAll() {
+  renderStudentTable();
+  renderReceiptTable();
+  renderFeesTable();
+  renderDashboard();
+  refreshDropdowns();
+  initRollNumbers();
+  document.getElementById('totalBadge').textContent = students.length;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// SAVE STUDENT
+// ══════════════════════════════════════════════════════════════════
+async function saveStudent() {
+  if(!validate([
+    ['s_name',    v=>v.trim()!=='',        'Please enter student name'],
+    ['s_addr',    v=>v.trim()!=='',        'Please enter address'],
+    ['s_dob',     v=>v!=='',              'Please select date of birth'],
+    ['s_contact', v=>/^\d{10}$/.test(v),  'Enter valid 10-digit number'],
+    ['s_admdate', v=>v!=='',              'Please select admission date'],
+    ['s_ctype',   v=>v!=='',              'Please select course type'],
+    ['s_fees',    v=>v!==''&&Number(v)>0,'Please enter valid total fees'],
+  ])) return;
+
+  const roll    = parseInt(document.getElementById('s_roll').value);
+  const ctype   = document.getElementById('s_ctype').value;
+  const prefix  = ctype==='Computer'?'C': ctype==='Typing'?'T': ctype.charAt(0).toUpperCase();
+  const formNo  = prefix + roll;
+  const admDate = document.getElementById('s_admdate').value;
+  const admObj  = new Date(admDate);
+  const month   = admObj.toLocaleString('en-IN',{month:'short'}) + '-' + String(admObj.getFullYear()).slice(2);
+
+  const s = {
+    srNo: students.length + 1, roll, formNo, month,
+    name:      document.getElementById('s_name').value.trim(),
+    addr:      document.getElementById('s_addr').value.trim(),
+    dob:       document.getElementById('s_dob').value,
+    contact:   document.getElementById('s_contact').value,
+    admDate, cType: ctype,
+    c1: document.getElementById('s_c1').value,
+    c2: document.getElementById('s_c2').value,
+    c3: document.getElementById('s_c3').value,
+    totalFees:    parseFloat(document.getElementById('s_fees').value),
+    feesPaid:     0,
+    lastInstDate: '',
+    instalments:  [0,0,0,0,0,0,0,0],
+    createdAt:    new Date().toISOString()
+  };
+
+  showSync('Saving student…');
+  await fbSave('students', formNo, s);
+  showToast('✅ Student ' + s.name + ' saved!');
+  clearForm('student');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// SAVE RECEIPT
+// ══════════════════════════════════════════════════════════════════
+function fillStudentFromForm() {
+  const formNo = document.getElementById('r_form').value;
+  const s = students.find(x=>x.formNo===formNo);
+  if(s) {
+    document.getElementById('r_name').value   = s.name;
+    document.getElementById('r_course').value = [s.c1,s.c2,s.c3].filter(Boolean).join(', ') || s.cType;
+  }
+}
+
+async function saveReceipt() {
+  if(!validate([
+    ['r_form',   v=>v!=='',               'Please select student'],
+    ['r_date',   v=>v!=='',               'Please select date'],
+    ['r_amount', v=>v!==''&&Number(v)>0, 'Please enter valid amount'],
+    ['r_mode',   v=>v!=='',               'Select payment mode'],
+    ['r_ftype',  v=>v!=='',               'Select fees type'],
+  ])) return;
+
+  const maxRec  = receipts.length ? Math.max(...receipts.map(r=>r.no)) : 275;
+  const formNo  = document.getElementById('r_form').value;
+  const s       = students.find(x=>x.formNo===formNo);
+  const amount  = parseFloat(document.getElementById('r_amount').value);
+  const date    = document.getElementById('r_date').value;
+  const dateObj = new Date(date);
+  const month   = dateObj.toLocaleString('en-IN',{month:'short'}) + '-' + String(dateObj.getFullYear()).slice(2);
+  const recNo   = maxRec + 1;
+
+  const rec = {
+    no: recNo, formNo,
+    name:    document.getElementById('r_name').value,
+    date, amount,
+    course:  document.getElementById('r_course').value,
+    next:    document.getElementById('r_next').value,
+    ftype:   document.getElementById('r_ftype').value,
+    mode:    document.getElementById('r_mode').value,
+    month,
+    remarks: document.getElementById('r_remarks').value,
+    createdAt: new Date().toISOString()
+  };
+
+  showSync('Saving receipt…');
+  await fbSave('receipts', String(recNo), rec);
+
+  // update student paid amount in Firestore
+  if(s) {
+    const newPaid = (s.feesPaid||0) + amount;
+    await fbSave('students', formNo, { ...s, feesPaid: newPaid, lastInstDate: date });
+  }
+
+  showToast('💰 Receipt saved — ₹' + amount.toLocaleString('en-IN'));
+  clearForm('receipt');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// SAVE INSTALMENT
+// ══════════════════════════════════════════════════════════════════
+function fillFeesFromForm() {
+  const formNo = document.getElementById('f_form').value;
+  const s = students.find(x=>x.formNo===formNo);
+  if(s) {
+    document.getElementById('f_name').value  = s.name;
+    document.getElementById('f_total').value = '₹' + s.totalFees.toLocaleString('en-IN');
+    document.getElementById('f_paid').value  = '₹' + (s.feesPaid||0).toLocaleString('en-IN');
+  }
+}
+
+async function saveInstalment() {
+  if(!validate([
+    ['f_form',      v=>v!=='',               'Please select student'],
+    ['f_inst_no',   v=>v!=='',               'Select instalment number'],
+    ['f_inst_amt',  v=>v!==''&&Number(v)>0, 'Enter valid amount'],
+    ['f_inst_date', v=>v!=='',               'Select payment date'],
+  ])) return;
+
+  const formNo  = document.getElementById('f_form').value;
+  const instNo  = parseInt(document.getElementById('f_inst_no').value) - 1;
+  const amount  = parseFloat(document.getElementById('f_inst_amt').value);
+  const date    = document.getElementById('f_inst_date').value;
+  const s       = students.find(x=>x.formNo===formNo);
+  if(!s) return;
+
+  const instalments = [...(s.instalments || [0,0,0,0,0,0,0,0])];
+  instalments[instNo] = amount;
+  const newPaid = instalments.reduce((a,b)=>a+(b||0),0);
+
+  showSync('Saving instalment…');
+  await fbSave('students', formNo, { ...s, instalments, feesPaid: newPaid, lastInstDate: date });
+
+  // auto receipt
+  const maxRec = receipts.length ? Math.max(...receipts.map(r=>r.no)) : 275;
+  const recNo  = maxRec + 1;
+  const dateObj = new Date(date);
+  const month   = dateObj.toLocaleString('en-IN',{month:'short'}) + '-' + String(dateObj.getFullYear()).slice(2);
+  await fbSave('receipts', String(recNo), {
+    no: recNo, formNo, name: s.name, date, amount,
+    course: s.c1, next:'', ftype:'Course Fee', mode:'Cash',
+    month, remarks:'Instalment '+(instNo+1), createdAt: new Date().toISOString()
+  });
+
+  showToast('📋 Instalment saved — ₹' + amount.toLocaleString('en-IN'));
+  clearForm('fees');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// DELETE
+// ══════════════════════════════════════════════════════════════════
+async function deleteStudent(formNo) {
+  if(!confirm('Delete student ' + formNo + '?')) return;
+  showSync('Deleting…');
+  await fbDelete('students', formNo);
+  showToast('🗑 Student removed');
+}
+async function deleteReceipt(recId) {
+  if(!confirm('Delete this receipt?')) return;
+  showSync('Deleting…');
+  await fbDelete('receipts', String(recId));
+  showToast('🗑 Receipt removed');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// VALIDATION
+// ══════════════════════════════════════════════════════════════════
+function validate(rules) {
+  let ok = true;
+  rules.forEach(([id, check, msg]) => {
+    const el    = document.getElementById(id);
+    const field = el.closest('.field');
+    const errEl = field.querySelector('.err-msg');
+    if(!check(el.value)) {
+      field.classList.add('error');
+      if(errEl) errEl.textContent = msg;
+      ok = false;
+    } else {
+      field.classList.remove('error');
+    }
+  });
+  return ok;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// CLEAR FORMS
+// ══════════════════════════════════════════════════════════════════
+function clearForm(type) {
+  if(type==='student') {
+    ['s_name','s_addr','s_dob','s_contact','s_fees'].forEach(id=>document.getElementById(id).value='');
+    ['s_ctype','s_c1','s_c2','s_c3'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('s_form').value='';
+    initRollNumbers();
+  } else if(type==='receipt') {
+    ['r_form','r_mode','r_ftype','r_next','r_remarks'].forEach(id=>document.getElementById(id).value='');
+    ['r_name','r_course'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('r_amount').value='';
+    document.getElementById('r_date').value=new Date().toISOString().split('T')[0];
+  } else if(type==='fees') {
+    ['f_form','f_inst_no'].forEach(id=>document.getElementById(id).value='');
+    ['f_name','f_total','f_paid'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('f_inst_amt').value='';
+    document.getElementById('f_inst_date').value=new Date().toISOString().split('T')[0];
+  }
+  document.querySelectorAll('.field.error').forEach(f=>f.classList.remove('error'));
+}
+
+// ══════════════════════════════════════════════════════════════════
+// RENDER HELPERS
+// ══════════════════════════════════════════════════════════════════
+function fmt(n)     { return (n||0).toLocaleString('en-IN'); }
+function fmtDate(d) {
+  if(!d) return '';
+  try { return new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}); }
+  catch { return d; }
+}
+function statusPill(paid, total) {
+  const p = total - paid;
+  if(p<=0 && paid>0) return '<span class="pill pill-green">✅ Full Paid</span>';
+  if(paid===0)        return '<span class="pill pill-amber">⚪ Not Paid</span>';
+  return               '<span class="pill pill-red">🔴 Pending</span>';
+}
+
+function renderStudentTable() {
+  const tbody = document.getElementById('studentTbody');
+  tbody.innerHTML = students.map(s=>`
+    <tr>
+      <td>${s.formNo}</td>
+      <td><strong>${s.name}</strong></td>
+      <td>${s.c1||s.cType}</td>
+      <td>${fmtDate(s.admDate)}</td>
+      <td style="text-align:right">₹${fmt(s.totalFees)}</td>
+      <td style="text-align:right;color:var(--green)">₹${fmt(s.feesPaid)}</td>
+      <td style="text-align:right;color:var(--red)">₹${fmt(s.totalFees-s.feesPaid)}</td>
+      <td>${statusPill(s.feesPaid,s.totalFees)}</td>
+      <td><button class="del-btn" onclick="deleteStudent('${s.formNo}')" title="Delete">🗑</button></td>
+    </tr>`).join('');
+  document.getElementById('studentCount').textContent = students.length;
+}
+
+function renderReceiptTable() {
+  const tbody = document.getElementById('receiptTbody');
+  tbody.innerHTML = receipts.map(r=>`
+    <tr>
+      <td>${r.no}</td><td>${r.formNo}</td><td>${r.name}</td>
+      <td>${fmtDate(r.date)}</td>
+      <td style="text-align:right;font-weight:600">₹${fmt(r.amount)}</td>
+      <td><span class="pill ${r.mode==='Cash'?'pill-amber':'pill-blue'}">${r.mode}</span></td>
+      <td>${r.ftype}</td>
+      <td><button class="del-btn" onclick="deleteReceipt('${r.id||r.no}')">🗑</button></td>
+    </tr>`).join('');
+  document.getElementById('receiptCount').textContent = receipts.length;
+}
+
+function renderFeesTable() {
+  const tbody = document.getElementById('feesTbody');
+  tbody.innerHTML = feesDetails.filter(f=>f.roll).map(f=>{
+    const paid = f.i.reduce((a,b)=>a+(b||0),0);
+    const bal  = f.total - paid;
+    const stat = bal<=0&&paid>0
+      ? '<span class="pill pill-green">Full Paid</span>'
+      : paid===0 ? '<span class="pill pill-amber">Not Paid</span>'
+      : '<span class="pill pill-red">Pending</span>';
+    const iCells = [0,1,2,3].map(n=>
+      `<td style="text-align:right">${f.i[n]?'₹'+fmt(f.i[n]):''}</td>`).join('');
+    return `<tr>
+      <td>${f.roll}</td><td><strong>${f.name}</strong></td>
+      <td style="text-align:right">₹${fmt(f.total)}</td>
+      ${iCells}
+      <td style="text-align:right;color:var(--green)">₹${fmt(paid)}</td>
+      <td style="text-align:right;color:${bal>0?'var(--red)':'var(--green)'}">₹${fmt(Math.abs(bal))}</td>
+      <td>${stat}</td></tr>`;
+  }).join('');
+}
+
+function renderDashboard() {
+  const src = filteredStudents();
+  const totalFees    = src.reduce((a,s)=>a+s.totalFees,0);
+  const totalPaid    = src.reduce((a,s)=>a+(s.feesPaid||0),0);
+  const totalPending = totalFees - totalPaid;
+  const pct = totalFees>0 ? Math.round(totalPaid/totalFees*100) : 0;
+
+  document.getElementById('kpi-students').textContent  = src.length;
+  document.getElementById('kpi-collected').textContent = '₹'+fmt(totalPaid);
+  document.getElementById('kpi-pending').textContent   = '₹'+fmt(totalPending);
+  document.getElementById('kpi-total').textContent     = '₹'+fmt(totalFees);
+  document.getElementById('progressPct').textContent   = pct+'%';
+  document.getElementById('progressBar').style.width   = pct+'%';
+
+  // pending list (visual cards)
+  const pendingStudents = src.filter(s=>s.totalFees>(s.feesPaid||0));
+  const list = document.getElementById('pendingList');
+  if(pendingStudents.length===0) {
+    list.innerHTML = '<div style="padding:22px;text-align:center;color:var(--green);font-weight:600">🎉 All students have cleared their fees!</div>';
+  } else {
+    list.innerHTML = pendingStudents.map(s=>{
+      const pending = s.totalFees - (s.feesPaid||0);
+      const initials = s.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+      return `<div class="pending-row">
+        <div class="avatar">${initials}</div>
+        <div class="pending-info">
+          <div class="pending-name">${s.name}</div>
+          <div class="pending-course">${s.formNo} · ${s.c1||s.cType}</div>
+        </div>
+        <div class="pending-amt">₹${fmt(pending)}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // build pendancy table (for export/print)
+  buildPendancyTable(pendingStudents, totalFees, totalPaid, totalPending);
+
+  // all records
+  const at = document.getElementById('allStudentTbody');
+  at.innerHTML = students.map(s=>`<tr>
+    <td>${s.formNo}</td><td><strong>${s.name}</strong></td><td>${s.contact}</td>
+    <td>${s.c1||s.cType}</td><td>${fmtDate(s.admDate)}</td>
+    <td style="text-align:right">₹${fmt(s.totalFees)}</td>
+    <td style="text-align:right;color:var(--green)">₹${fmt(s.feesPaid||0)}</td>
+    <td style="text-align:right;color:var(--red)">₹${fmt(s.totalFees-(s.feesPaid||0))}</td>
+    <td>${statusPill(s.feesPaid||0,s.totalFees)}</td>
+  </tr>`).join('');
+  document.getElementById('allStudentCount').textContent = students.length;
+
+  const ar = document.getElementById('allReceiptTbody');
+  ar.innerHTML = receipts.map(r=>`<tr>
+    <td>${r.no}</td><td>${r.formNo}</td><td>${r.name}</td>
+    <td>${fmtDate(r.date)}</td>
+    <td style="text-align:right;font-weight:600">₹${fmt(r.amount)}</td>
+    <td><span class="pill ${r.mode==='Cash'?'pill-amber':'pill-blue'}">${r.mode}</span></td>
+    <td>${r.ftype}</td>
+  </tr>`).join('');
+  document.getElementById('allReceiptCount').textContent = receipts.length;
+}
+
+function refreshDropdowns() {
+  const opts = students.map(s=>`<option value="${s.formNo}">${s.formNo} — ${s.name}</option>`).join('');
+  ['r_form','f_form'].forEach(id=>{
+    const el = document.getElementById(id);
+    const cur = el.value;
+    el.innerHTML = '<option value="">— Select Student —</option>' + opts;
+    el.value = cur;
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════
+// PENDANCY TABLE (for print/export)
+// ══════════════════════════════════════════════════════════════════
+function buildPendancyTable(pendingStudents, totalFees, totalPaid, totalPending) {
+  const tbody = document.getElementById('pendancyTbody');
+  const tfoot = document.getElementById('pendancyFoot');
+
+  tbody.innerHTML = pendingStudents.map((s,i)=>{
+    const pending = s.totalFees - (s.feesPaid||0);
+    const stat = (s.feesPaid||0)===0 ? 'Not Paid' : 'Pending';
+    return `<tr>
+      <td>${i+1}</td>
+      <td>${s.formNo}</td>
+      <td>${s.name}</td>
+      <td>${s.c1||s.cType}</td>
+      <td>${fmtDate(s.admDate)}</td>
+      <td>${s.contact}</td>
+      <td style="text-align:right">₹${fmt(s.totalFees)}</td>
+      <td style="text-align:right;color:var(--green)">₹${fmt(s.feesPaid||0)}</td>
+      <td style="text-align:right;color:var(--red);font-weight:700">₹${fmt(pending)}</td>
+      <td>${(s.feesPaid||0)===0?'<span class="pill pill-amber">Not Paid</span>':'<span class="pill pill-red">Pending</span>'}</td>
+    </tr>`;
+  }).join('');
+
+  tfoot.innerHTML = `<tr style="background:#F0F5FF;font-weight:700">
+    <td colspan="6" style="padding:11px 16px;text-align:right;font-size:12px">TOTALS</td>
+    <td style="padding:11px 16px;text-align:right">₹${fmt(totalFees)}</td>
+    <td style="padding:11px 16px;text-align:right;color:var(--green)">₹${fmt(totalPaid)}</td>
+    <td style="padding:11px 16px;text-align:right;color:var(--red)">₹${fmt(totalPending)}</td>
+    <td></td>
+  </tr>`;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// PRINT PENDANCY REPORT
+// ══════════════════════════════════════════════════════════════════
+function printPendancyReport() {
+  const monthLabel = activeMonth==='all' ? 'All Months' : activeMonth;
+  const date = new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'long',year:'numeric'});
+  document.getElementById('printSub').textContent =
+    `Month: ${monthLabel}  |  Generated: ${date}`;
+
+  // show table for print
+  document.getElementById('pendancyTable').style.display = 'table';
+  window.print();
+  setTimeout(()=>{
+    document.getElementById('pendancyTable').style.display = 'none';
+  }, 1000);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// EXPORT PENDANCY EXCEL
+// ══════════════════════════════════════════════════════════════════
+function exportPendancyExcel() {
+  const src = filteredStudents().filter(s=>s.totalFees>(s.feesPaid||0));
+  const monthLabel = activeMonth==='all' ? 'All Months' : activeMonth;
+  const date = new Date().toLocaleDateString('en-IN');
+
+  if(src.length===0) { showToast('No pending fees to export!'); return; }
+
+  // Build worksheet data
+  const wsData = [
+    ['COMPUTER INSTITUTE — FEES PENDANCY REPORT'],
+    [`Month: ${monthLabel}   |   Generated: ${date}`],
+    [],
+    ['#','Form No','Student Name','Course','Adm. Date','Contact','Total Fees (₹)','Paid (₹)','Pending (₹)','Status']
+  ];
+
+  src.forEach((s,i)=>{
+    const pending = s.totalFees - (s.feesPaid||0);
+    wsData.push([
+      i+1, s.formNo, s.name, s.c1||s.cType,
+      fmtDate(s.admDate), s.contact,
+      s.totalFees, s.feesPaid||0, pending,
+      (s.feesPaid||0)===0 ? 'Not Paid' : 'Pending'
+    ]);
+  });
+
+  // Totals row
+  const totalFees    = src.reduce((a,s)=>a+s.totalFees,0);
+  const totalPaid    = src.reduce((a,s)=>a+(s.feesPaid||0),0);
+  const totalPending = totalFees - totalPaid;
+  wsData.push([]);
+  wsData.push(['','','','','','TOTALS', totalFees, totalPaid, totalPending, '']);
+
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+  // Column widths
+  ws['!cols'] = [
+    {wch:4},{wch:8},{wch:28},{wch:22},{wch:12},
+    {wch:13},{wch:14},{wch:11},{wch:12},{wch:11}
+  ];
+
+  // Merge title row
+  ws['!merges'] = [
+    {s:{r:0,c:0}, e:{r:0,c:9}},
+    {s:{r:1,c:0}, e:{r:1,c:9}},
+  ];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Fees Pendancy');
+  XLSX.writeFile(wb, `FeePendancy_${monthLabel.replace(/\s/g,'_')}_${date.replace(/\//g,'-')}.xlsx`);
+  showToast('📊 Fees Pendancy Excel exported!');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// EXPORT CSV
+// ══════════════════════════════════════════════════════════════════
+function exportCSV(type) {
+  let csv='', name='';
+  if(type==='students') {
+    name = 'Students.csv';
+    csv  = 'Sr No,Roll No,Form No,Month,Name,Contact,Adm. Date,Course,Total Fees,Fees Paid,Fees Pending\n';
+    csv += students.map((s,i)=>[
+      i+1, s.roll, s.formNo, s.month,
+      '"'+s.name+'"', s.contact, s.admDate, s.c1||s.cType,
+      s.totalFees, s.feesPaid||0, s.totalFees-(s.feesPaid||0)
+    ].join(',')).join('\n');
+  } else if(type==='receipts') {
+    name = 'Receipts.csv';
+    csv  = 'Receipt No,Form No,Student Name,Date,Amount,Course,Fees Type,Payment Mode,Month,Remarks\n';
+    csv += receipts.map(r=>[
+      r.no, r.formNo, '"'+r.name+'"', r.date, r.amount, r.course, r.ftype, r.mode, r.month, r.remarks
+    ].join(',')).join('\n');
+  } else {
+    name = 'FeesDetails.csv';
+    csv  = 'Roll No,Name,Total Fees,I1,I2,I3,I4,I5,I6,I7,I8,Total Paid,Balance,Status\n';
+    csv += feesDetails.filter(f=>f.roll).map(f=>{
+      const paid = f.i.reduce((a,b)=>a+(b||0),0);
+      const bal  = f.total-paid;
+      const stat = bal<=0&&paid>0?'Full Paid':paid===0?'Not Paid':'Pending';
+      return [f.roll,'"'+f.name+'"',f.total,...f.i,paid,bal,stat].join(',');
+    }).join('\n');
+  }
+  const blob = new Blob([csv],{type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name; a.click();
+  showToast('⬇️ '+name+' downloaded!');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// TOAST
+// ══════════════════════════════════════════════════════════════════
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 3200);
+}
+</script>
+</body>
+</html>
