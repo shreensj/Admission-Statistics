@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admission Statistics Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <div class="page-shell">
+    <header class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">Admission control room</p>
+        <h1>Publishable dashboard with Firebase data sync</h1>
+        <p class="hero-text">
+          Host this on GitHub Pages, connect it to Firebase, and manage admissions, receipts,
+          fees, and income from one cleaner dashboard.
+        </p>
+      </div>
+      <div class="hero-actions">
+        <button id="adminLoginBtn" class="button button-secondary">Admin login</button>
+        <button id="adminLogoutBtn" class="button button-secondary hidden">Logout</button>
+        <button id="seedFirebaseBtn" class="button button-secondary">Seed Firebase</button>
+        <button id="exportJsonBtn" class="button button-primary">Export JSON</button>
+      </div>
+    </header>
+
+    <section class="status-strip panel">
+      <div class="status-block">
+        <span>Firebase</span>
+        <strong id="firebaseStatusValue">Not connected</strong>
+      </div>
+      <div class="status-block">
+        <span>Signed in user</span>
+        <strong id="authStatusValue">Waiting</strong>
+      </div>
+      <div class="status-block">
+        <span>Access</span>
+        <strong id="adminStatusValue">Guest</strong>
+      </div>
+      <div class="status-block">
+        <span>Data source</span>
+        <strong id="dataSourceValue">Workbook snapshot</strong>
+      </div>
+      <div class="status-block status-message">
+        <span>Live message</span>
+        <strong id="statusMessageValue">Add your Firebase config to enable cloud sync.</strong>
+      </div>
+    </section>
+
+    <section class="summary-grid" id="summaryGrid"></section>
+
+    <section class="workspace">
+      <aside class="sheet-list">
+        <div class="panel-heading">
+          <h2>Workbook Sheets</h2>
+          <p>Each sheet has its own table, metrics, and add-entry form.</p>
+        </div>
+        <div id="sheetTabs" class="sheet-tabs"></div>
+      </aside>
+
+      <main class="sheet-view">
+        <section class="panel command-bar">
+          <div>
+            <p class="sheet-label">Current sheet</p>
+            <h2 id="activeSheetTitle">Loading...</h2>
+          </div>
+          <div class="toolbar-actions">
+            <input id="searchInput" class="search-input" type="search" placeholder="Search current sheet">
+            <button id="addEntryBtn" class="button button-primary">Add entry</button>
+            <button id="exportSheetBtn" class="button button-secondary">Export CSV</button>
+          </div>
+        </section>
+
+        <section class="sheet-insights">
+          <article class="panel metric-card">
+            <span>Visible rows</span>
+            <strong id="rowCountValue">0</strong>
+          </article>
+          <article class="panel metric-card">
+            <span>Columns</span>
+            <strong id="columnCountValue">0</strong>
+          </article>
+          <article class="panel metric-card">
+            <span>Workbook source</span>
+            <strong id="sourceValue">-</strong>
+          </article>
+        </section>
+
+        <section class="panel table-panel">
+          <div class="table-wrap">
+            <table id="sheetTable"></table>
+          </div>
+        </section>
+      </main>
+    </section>
+  </div>
+
+  <dialog id="entryDialog" class="entry-dialog">
+    <form id="entryForm" method="dialog">
+      <div class="dialog-header">
+        <div>
+          <p class="sheet-label" id="entryDialogLabel">New row</p>
+          <h3 id="dialogTitle">Add entry</h3>
+        </div>
+        <button type="button" id="closeDialogBtn" class="icon-button" aria-label="Close dialog">x</button>
+      </div>
+      <div id="formFields" class="form-grid"></div>
+      <div class="dialog-actions">
+        <button type="button" id="cancelDialogBtn" class="button button-secondary">Cancel</button>
+        <button type="submit" class="button button-primary">Save entry</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="adminDialog" class="entry-dialog">
+    <form id="adminForm" method="dialog">
+      <div class="dialog-header">
+        <div>
+          <p class="sheet-label">Administrator</p>
+          <h3>Admin login</h3>
+        </div>
+        <button type="button" id="closeAdminDialogBtn" class="icon-button" aria-label="Close admin dialog">x</button>
+      </div>
+      <div class="form-grid single-column">
+        <div class="form-field">
+          <label for="adminEmail">Email</label>
+          <input id="adminEmail" name="email" type="email" autocomplete="username" required>
+        </div>
+        <div class="form-field">
+          <label for="adminPassword">Password</label>
+          <input id="adminPassword" name="password" type="password" autocomplete="current-password" required>
+        </div>
+      </div>
+      <div class="dialog-actions">
+        <button type="button" id="cancelAdminDialogBtn" class="button button-secondary">Cancel</button>
+        <button type="submit" class="button button-primary">Login</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="data/workbook-data.js"></script>
+  <script src="firebase-config.js"></script>
+  <script type="module" src="assets/app.js"></script>
+</body>
+</html>
