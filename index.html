@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Institute Data Entry Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-brand">
+      <div class="topbar-icon">AI</div>
+      <div>
+        <div class="topbar-title">Institute Admissions Control Center</div>
+        <div class="topbar-sub">Professional records, receipts, fees, and income tracking</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <span class="topbar-date" id="topDate">Loading date...</span>
+    </div>
+  </header>
+
+  <nav class="nav-wrap">
+    <button class="nav-tab active" id="overviewTabBtn" type="button">
+      Executive Overview
+      <span class="nav-badge" id="sheetCountBadge">0</span>
+    </button>
+    <div id="sheetTabs" class="sheet-tab-strip"></div>
+  </nav>
+
+  <main class="main">
+    <section class="panel active" id="overviewPanel">
+      <div class="kpi-row" id="summaryGrid"></div>
+
+      <div class="status-grid">
+        <article class="status-card">
+          <span>Cloud Connection</span>
+          <strong id="firebaseStatusValue">Not connected</strong>
+        </article>
+        <article class="status-card">
+          <span>Active User</span>
+          <strong id="authStatusValue">Waiting</strong>
+        </article>
+        <article class="status-card">
+          <span>Permission Level</span>
+          <strong id="adminStatusValue">Guest</strong>
+        </article>
+        <article class="status-card">
+          <span>Live Data Source</span>
+          <strong id="dataSourceValue">Workbook snapshot</strong>
+        </article>
+      </div>
+
+        <div class="export-note">
+          <div class="export-note-icon">+</div>
+          <div>
+            <div class="export-note-title">Operations brief</div>
+            <div class="export-note-text" id="statusMessageValue">
+              Add your Firebase config to enable cloud sync.
+            </div>
+          </div>
+          <div class="export-note-actions">
+            <button id="viewPendingBtn" class="btn btn-ghost" type="button">View Pending Fees</button>
+          </div>
+        </div>
+    </section>
+
+    <section class="panel active" id="workspacePanel">
+      <div class="form-card">
+        <div class="form-header">
+          <div class="form-header-icon icon-blue">DB</div>
+          <div class="form-header-copy">
+            <div class="form-title" id="activeSheetTitle">Loading...</div>
+            <div class="form-desc">
+              Review live sheet activity, search records instantly, and manage cloud-backed entries with admin controls.
+            </div>
+          </div>
+          <div class="header-actions">
+            <button id="adminLoginBtn" class="btn btn-ghost" type="button">Admin login</button>
+            <button id="adminLogoutBtn" class="btn btn-ghost hidden" type="button">Logout</button>
+            <button id="seedFirebaseBtn" class="btn btn-green" type="button">Seed Firebase</button>
+            <button id="exportJsonBtn" class="btn btn-ghost" type="button">Export JSON</button>
+          </div>
+        </div>
+
+        <div class="form-body">
+          <div class="section-label">Current Sheet Snapshot</div>
+          <div class="sheet-mini-grid">
+            <div class="mini-card">
+              <span>Visible records</span>
+              <strong id="rowCountValue">0</strong>
+            </div>
+            <div class="mini-card">
+              <span>Tracked columns</span>
+              <strong id="columnCountValue">0</strong>
+            </div>
+            <div class="mini-card">
+              <span>Workbook source</span>
+              <strong id="sourceValue">-</strong>
+            </div>
+          </div>
+
+          <div class="section-label">Productivity Tools</div>
+          <div class="toolbar-row">
+            <input id="searchInput" class="search-input" type="search" placeholder="Search by student, form number, date, amount, or any sheet value">
+            <div class="toolbar-actions">
+              <button id="addEntryBtn" class="btn btn-primary" type="button">Add New Entry</button>
+              <button id="exportSheetBtn" class="btn btn-ghost" type="button">Export Current Sheet</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <div class="table-header">
+          <span class="table-title">Structured Sheet Records</span>
+          <span class="record-count" id="recordCountChip">0 rows</span>
+        </div>
+        <table id="sheetTable"></table>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="entryDialog" class="entry-dialog">
+    <form id="entryForm" method="dialog">
+      <div class="dialog-header">
+        <div>
+          <p class="sheet-label" id="entryDialogLabel">New row</p>
+          <h3 id="dialogTitle">Add entry</h3>
+        </div>
+        <button type="button" id="closeDialogBtn" class="icon-button" aria-label="Close dialog">x</button>
+      </div>
+      <div id="formFields" class="form-grid"></div>
+      <div class="dialog-actions">
+        <button type="button" id="cancelDialogBtn" class="btn btn-ghost">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save entry</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="adminDialog" class="entry-dialog">
+    <form id="adminForm" method="dialog">
+      <div class="dialog-header">
+        <div>
+          <p class="sheet-label">Administrator</p>
+          <h3>Admin login</h3>
+        </div>
+        <button type="button" id="closeAdminDialogBtn" class="icon-button" aria-label="Close admin dialog">x</button>
+      </div>
+      <div class="form-grid single-column">
+        <div class="form-field">
+          <label for="adminEmail">Email</label>
+          <input id="adminEmail" name="email" type="email" autocomplete="username" required>
+        </div>
+        <div class="form-field">
+          <label for="adminPassword">Password</label>
+          <input id="adminPassword" name="password" type="password" autocomplete="current-password" required>
+        </div>
+      </div>
+      <div class="dialog-actions">
+        <button type="button" id="cancelAdminDialogBtn" class="btn btn-ghost">Cancel</button>
+        <button type="submit" class="btn btn-primary">Login</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="pendingDialog" class="entry-dialog">
+    <div class="pending-dialog-shell">
+      <div class="dialog-header">
+        <div>
+          <p class="sheet-label">Fees Monitoring</p>
+          <h3>Pending Fees Summary</h3>
+        </div>
+        <button type="button" id="closePendingDialogBtn" class="icon-button" aria-label="Close pending dialog">x</button>
+      </div>
+      <div class="pending-summary-bar">
+        <div class="pending-summary-item">
+          <span>Total pending students</span>
+          <strong id="pendingStudentCount">0</strong>
+        </div>
+        <div class="pending-summary-item">
+          <span>Total pending amount</span>
+          <strong id="pendingAmountTotal">0</strong>
+        </div>
+      </div>
+      <div class="pending-list" id="pendingList"></div>
+      <div class="dialog-actions">
+        <button type="button" id="closePendingFooterBtn" class="btn btn-primary">Close</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script src="data/workbook-data.js"></script>
+  <script src="firebase-config.js"></script>
+  <script type="module" src="assets/app.js"></script>
+</body>
+</html>
