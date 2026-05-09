@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Computer Institute — Management System</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+const FIREBASE_CONFIG = {
+  apiKey:"AIzaSyBY8tKhGISwfjauUOCosKvIdq4I_-saoJg",
+  authDomain:"add-web-app-5ea10.firebaseapp.com",
+  projectId:"add-web-app-5ea10",
+  storageBucket:"add-web-app-5ea10.firebasestorage.app",
+  messagingSenderId:"758424929679",
+  appId:"1:758424929679:web:b9a9e57f84c42910aa37fa"
+};
+</script>
+<style>
+:root{--navy:#0F2443;--blue:#1A5CB8;--sky:#3B9EFF;--teal:#0EA8A8;--green:#1D9A6C;--amber:#F59E0B;--red:#E53E3E;--paper:#F5F7FC;--surface:#FFFFFF;--border:#D8E2F0;--text:#1A2540;--muted:#6B7A99;--tag:#EBF2FF;--shadow:0 4px 24px rgba(15,36,67,.10);--r:14px;--f:'Plus Jakarta Sans',sans-serif}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--f);background:var(--paper);color:var(--text);min-height:100vh}
+.topbar{background:var(--navy);padding:0 28px;display:flex;align-items:center;justify-content:space-between;height:60px;position:sticky;top:0;z-index:100;box-shadow:0 2px 16px rgba(0,0,0,.25)}
+.t-brand{display:flex;align-items:center;gap:12px}
+.t-icon{width:36px;height:36px;background:linear-gradient(135deg,var(--sky),var(--teal));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px}
+.t-title{font-weight:800;font-size:16px;color:#fff;letter-spacing:-.3px}
+.t-sub{font-size:11px;color:rgba(255,255,255,.5)}
+.t-right{display:flex;align-items:center;gap:12px}
+.t-date{font-size:11px;color:rgba(255,255,255,.6)}
+.fbs{font-size:11px;padding:4px 10px;border-radius:20px;font-weight:600}
+.fbs.ok{background:rgba(29,154,108,.3);color:#4DDFAA}
+.fbs.err{background:rgba(229,62,62,.3);color:#FF8080}
+.fbs.sync{background:rgba(59,158,255,.3);color:#7DC8FF}
+/* BRANCH SELECTOR */
+.branch-bar{background:linear-gradient(135deg,#0a1a30,#0F2443);border-bottom:3px solid rgba(255,255,255,.08);padding:0 28px;display:flex;align-items:center;gap:16px;height:48px}
+.branch-lbl{font-size:11px;font-weight:700;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.8px;white-space:nowrap}
+.branch-btns{display:flex;gap:6px;flex-wrap:wrap}
+.bbtn{padding:6px 18px;border-radius:20px;font-size:12px;font-weight:700;border:1.5px solid rgba(255,255,255,.18);background:transparent;color:rgba(255,255,255,.6);cursor:pointer;transition:all .2s;font-family:var(--f);display:flex;align-items:center;gap:6px;white-space:nowrap}
+.bbtn:hover{border-color:rgba(255,255,255,.5);color:#fff;background:rgba(255,255,255,.08)}
+.bbtn.active{background:var(--sky);border-color:var(--sky);color:#fff;box-shadow:0 2px 12px rgba(59,158,255,.4)}
+.bbtn .bdot{width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.7}
+.branch-tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;background:rgba(59,158,255,.2);color:var(--sky);margin-left:4px}
+.branch-manage-btn{margin-left:auto;padding:5px 14px;border-radius:7px;font-size:11px;font-weight:700;border:1.5px solid rgba(255,255,255,.2);background:transparent;color:rgba(255,255,255,.6);cursor:pointer;font-family:var(--f);transition:all .2s;white-space:nowrap}
+.branch-manage-btn:hover{border-color:rgba(255,255,255,.5);color:#fff}
+/* BRANCH MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(10,20,40,.7);z-index:2000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s}
+.modal-bg.open{opacity:1;pointer-events:all}
+.modal{background:var(--surface);border-radius:18px;padding:28px;width:min(480px,92vw);box-shadow:0 24px 64px rgba(0,0,0,.35);transform:scale(.96);transition:transform .25s}
+.modal-bg.open .modal{transform:scale(1)}
+.modal-title{font-weight:800;font-size:18px;color:var(--navy);margin-bottom:6px}
+.modal-sub{font-size:12px;color:var(--muted);margin-bottom:22px}
+.branch-list{display:flex;flex-direction:column;gap:10px;margin-bottom:20px;max-height:260px;overflow-y:auto}
+.branch-item{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:10px;border:1.5px solid var(--border);background:#FAFBFF}
+.branch-item input{flex:1;border:none;background:transparent;font-family:var(--f);font-size:14px;font-weight:600;color:var(--navy);outline:none}
+.branch-item .bcolor{width:24px;height:24px;border-radius:50%;flex-shrink:0;cursor:pointer;border:2px solid rgba(0,0,0,.1)}
+.branch-item .bdel{background:none;border:none;color:#CBD2DF;cursor:pointer;font-size:16px;padding:2px;border-radius:5px;transition:all .12s;flex-shrink:0}
+.branch-item .bdel:hover{color:var(--red);background:#FEE8E8}
+.add-branch-row{display:flex;gap:8px}
+.add-branch-row input{flex:1;padding:10px 13px;border:1.5px solid var(--border);border-radius:9px;font-family:var(--f);font-size:13px;outline:none}
+.add-branch-row input:focus{border-color:var(--sky);box-shadow:0 0 0 3px rgba(59,158,255,.12)}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;padding-top:16px;border-top:1px solid var(--border)}
+
+.nav-wrap{background:var(--surface);border-bottom:2px solid var(--border);padding:0 28px;display:flex;gap:2px;overflow-x:auto}
+.ntab{padding:13px 20px;font-weight:700;font-size:13px;color:var(--muted);border:none;background:none;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;white-space:nowrap;transition:all .2s;display:flex;align-items:center;gap:6px;font-family:var(--f)}
+.ntab:hover{color:var(--blue)}.ntab.active{color:var(--blue);border-bottom-color:var(--blue)}
+.nbadge{background:var(--tag);color:var(--blue);border-radius:20px;padding:2px 8px;font-size:10px;font-weight:600}
+.main{max-width:1000px;margin:28px auto;padding:0 20px}
+.panel{display:none}.panel.active{display:block}
+.fc{background:var(--surface);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden;border:1px solid var(--border);margin-bottom:22px}
+.fch{padding:20px 26px 16px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:14px}
+.fci{width:44px;height:44px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.ib{background:linear-gradient(135deg,#EBF2FF,#C3D9FF)}.ig{background:linear-gradient(135deg,#E8FBF4,#BFECD8)}.ia{background:linear-gradient(135deg,#FEF9E7,#FDEDC0)}.ir{background:linear-gradient(135deg,#FEE8E8,#FFBDBD)}
+.ft{font-weight:800;font-size:18px;color:var(--navy);line-height:1.2}
+.fd{font-size:12px;color:var(--muted);margin-top:3px}
+.fb{padding:20px 26px}
+.fa{padding:14px 26px 20px;display:flex;align-items:center;gap:10px;border-top:1px solid var(--border);background:#FAFBFF}
+.sl{font-weight:700;font-size:10px;color:var(--blue);letter-spacing:1.2px;text-transform:uppercase;margin:0 0 13px;padding-bottom:6px;border-bottom:1px dashed var(--border)}
+.fg{display:grid;grid-template-columns:1fr 1fr;gap:15px 18px;margin-bottom:20px}
+.fg3{grid-template-columns:1fr 1fr 1fr}.fg4{grid-template-columns:1fr 1fr 1fr 1fr}.ff{grid-column:1/-1}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.3px}
+.field label .req{color:var(--red);margin-left:2px}
+.field input,.field select,.field textarea{padding:10px 12px;border:1.5px solid var(--border);border-radius:9px;font-family:var(--f);font-size:13px;color:var(--text);background:var(--surface);transition:border-color .2s,box-shadow .2s;outline:none}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--sky);box-shadow:0 0 0 3px rgba(59,158,255,.12)}
+.field input::placeholder{color:#B0BAD0}
+.field textarea{resize:vertical;min-height:66px}
+.field.error input,.field.error select,.field.error textarea{border-color:var(--red);box-shadow:0 0 0 3px rgba(229,62,62,.10)}
+.err-msg{font-size:10px;color:var(--red);display:none}.field.error .err-msg{display:block}
+.btn{padding:10px 20px;border-radius:9px;font-family:var(--f);font-weight:700;font-size:13px;cursor:pointer;border:none;transition:all .2s;display:inline-flex;align-items:center;gap:6px}
+.btn-p{background:linear-gradient(135deg,var(--blue),var(--sky));color:#fff;box-shadow:0 4px 14px rgba(26,92,184,.3)}.btn-p:hover{transform:translateY(-1px)}
+.btn-g{background:linear-gradient(135deg,var(--green),#2DC28E);color:#fff;box-shadow:0 4px 14px rgba(29,154,108,.3)}.btn-g:hover{transform:translateY(-1px)}
+.btn-o{background:linear-gradient(135deg,#F59E0B,#FBBF24);color:#fff;box-shadow:0 4px 14px rgba(245,158,11,.3)}
+.btn-r{background:linear-gradient(135deg,var(--red),#FC8181);color:#fff;box-shadow:0 4px 14px rgba(229,62,62,.3)}
+.btn-gh{background:transparent;color:var(--muted);border:1.5px solid var(--border)}.btn-gh:hover{background:var(--paper);color:var(--text)}
+.btn-sm{padding:6px 12px;font-size:11px;border-radius:7px}
+.tw{background:var(--surface);border-radius:var(--r);box-shadow:var(--shadow);border:1px solid var(--border);overflow:hidden;margin-bottom:22px}
+.th{padding:13px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px}
+.tt{font-weight:700;font-size:14px}
+.tc{background:var(--tag);color:var(--blue);border-radius:20px;padding:3px 11px;font-size:11px;font-weight:700}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead th{background:#F0F5FF;padding:10px 14px;text-align:left;font-weight:700;font-size:10px;color:var(--blue);letter-spacing:.5px;text-transform:uppercase;border-bottom:1px solid var(--border);white-space:nowrap;font-family:var(--f)}
+tbody tr{border-bottom:1px solid #F0F4FB;transition:background .12s}
+tbody tr:hover{background:#F6F9FF}
+tbody td{padding:9px 14px;color:var(--text);vertical-align:middle}
+tfoot td{padding:9px 14px;font-weight:700;background:#F0F5FF;font-size:12px}
+.pill{display:inline-block;padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700}
+.pg{background:#E8FBF4;color:#1D9A6C}.pr{background:#FEE8E8;color:#C53030}.pa{background:#FEF3CD;color:#92630A}.pb{background:#EBF2FF;color:#1A5CB8}.pgr{background:#EEF1F7;color:#5A6478}
+.dbtn{background:none;border:none;color:#CBD2DF;cursor:pointer;font-size:14px;padding:3px;border-radius:5px;transition:all .12s}.dbtn:hover{color:var(--red);background:#FEE8E8}
+.abtn{padding:3px 8px;border-radius:5px;font-size:10px;font-weight:700;border:none;cursor:pointer;transition:all .12s;font-family:var(--f);display:inline-flex;align-items:center;gap:3px}
+.ae{background:#EBF2FF;color:var(--blue)}.ae:hover{background:var(--blue);color:#fff}.ad{background:#FEE8E8;color:var(--red)}.ad:hover{background:var(--red);color:#fff}
+.krow{display:grid;gap:13px;margin-bottom:20px}
+.kr4{grid-template-columns:repeat(4,1fr)}.kr3{grid-template-columns:repeat(3,1fr)}
+.kc{background:var(--surface);border-radius:var(--r);border:1px solid var(--border);box-shadow:var(--shadow);padding:17px 19px;position:relative;overflow:hidden}
+.kc::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px}
+.kb::after{background:linear-gradient(90deg,var(--blue),var(--sky))}.kg::after{background:linear-gradient(90deg,var(--green),#2DC28E)}.ka::after{background:linear-gradient(90deg,var(--amber),#FBBF24)}.kr::after{background:linear-gradient(90deg,var(--red),#FC8181)}
+.ki{font-size:22px;margin-bottom:7px}.kv{font-weight:800;font-size:22px;line-height:1;color:var(--navy)}.kl{font-size:11px;color:var(--muted);margin-top:3px}
+.mfbar{display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap;background:var(--surface);padding:11px 15px;border-radius:var(--r);border:1px solid var(--border);box-shadow:var(--shadow)}
+.mfl{font-weight:700;font-size:11px;color:var(--muted);white-space:nowrap;flex-shrink:0}
+.mfch{display:flex;gap:5px;flex-wrap:wrap;flex:1}
+.mfc{padding:5px 12px;border-radius:20px;font-size:11px;font-weight:600;border:1.5px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;transition:all .15s;font-family:var(--f)}
+.mfc:hover{border-color:var(--blue);color:var(--blue)}.mfc.active{background:var(--blue);color:#fff;border-color:var(--blue)}.mfc.all{background:var(--navy);color:#fff;border-color:var(--navy)}
+.pcard{background:var(--surface);border-radius:var(--r);box-shadow:var(--shadow);border:1px solid var(--border);overflow:hidden;margin-bottom:20px}
+.phdr{padding:13px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.ptitle{font-weight:700;font-size:14px}
+.pacts{display:flex;gap:7px}
+.prow{display:flex;align-items:center;padding:11px 18px;border-bottom:1px solid #F0F4FB;gap:11px;transition:background .12s}
+.prow:hover{background:#F6F9FF}.prow:last-child{border-bottom:none}
+.av{width:35px;height:35px;border-radius:50%;background:linear-gradient(135deg,var(--sky),var(--teal));display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#fff;flex-shrink:0}
+.pi{flex:1}.pn{font-weight:600;font-size:13px}.pc{font-size:11px;color:var(--muted)}.pa2{font-weight:800;font-size:14px;color:var(--red)}
+.pbg{background:#EEF1F7;border-radius:20px;height:6px;overflow:hidden;margin-top:3px}
+.pf{height:100%;border-radius:20px;background:linear-gradient(90deg,var(--green),#2DC28E);transition:width .8s ease}
+.ietabs{display:flex;gap:5px;margin-bottom:16px;border-bottom:2px solid var(--border);padding-bottom:0}
+.ietab{padding:11px 20px;font-weight:700;font-size:13px;color:var(--muted);border:none;background:none;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .2s;font-family:var(--f)}
+.ietab:hover{color:var(--blue)}.ietab.active{color:var(--blue);border-bottom-color:var(--blue)}
+.ov{position:fixed;inset:0;background:rgba(15,36,67,.6);display:flex;align-items:center;justify-content:center;z-index:9999;opacity:0;pointer-events:none;transition:opacity .3s}
+.ov.show{opacity:1;pointer-events:all}
+.ovb{background:#fff;border-radius:16px;padding:28px 36px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.sp{width:40px;height:40px;border:4px solid #D8E2F0;border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ovm{font-weight:600;font-size:13px;color:var(--navy)}
+.toast{position:fixed;bottom:26px;right:26px;background:var(--navy);color:#fff;padding:12px 18px;border-radius:12px;font-size:13px;font-weight:500;display:flex;align-items:center;gap:8px;box-shadow:0 8px 30px rgba(0,0,0,.25);transform:translateY(80px);opacity:0;transition:all .35s cubic-bezier(.34,1.56,.64,1);z-index:999}
+.toast.show{transform:translateY(0);opacity:1}
+.tic{width:24px;height:24px;background:linear-gradient(135deg,var(--green),#2DC28E);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
+.rpop{position:fixed;top:68px;left:50%;transform:translateX(-50%);background:#1A2540;color:#fff;padding:16px 20px;border-radius:12px;max-width:520px;width:92%;z-index:9999;font-size:13px;line-height:1.6;box-shadow:0 8px 32px rgba(0,0,0,.4)}
+@media print{
+  .topbar,.nav-wrap,.fa,.dbtn,.pacts,.mfbar,.no-print{display:none!important}
+  .main{margin:0;padding:0;max-width:100%}
+  .panel{display:none!important}
+  #panel-dashboard.active{display:block!important}
+  .pcard{box-shadow:none;border:1px solid #ccc}
+  body{background:#fff;font-size:11px}
+  .prh,.prs{display:block!important}
+  .krow{display:none}
+  table{font-size:10px}
+}
+.prh,.prs{display:none}
+.prh{text-align:center;font-size:16px;font-weight:800;color:#000;margin-bottom:8px}
+.prs{text-align:center;font-size:11px;color:#555;margin-bottom:12px}
+@media(max-width:640px){.fg,.fg3,.fg4{grid-template-columns:1fr}.ff{grid-column:1}.kr4{grid-template-columns:1fr 1fr}.kr3{grid-template-columns:1fr}.main{padding:0 10px;margin:14px auto}}
+</style>
+</head>
+<body>
+
+<div class="ov" id="ov"><div class="ovb"><div class="sp"></div><div class="ovm" id="ovm">Loading…</div></div></div>
+
+<div class="topbar">
+  <div class="t-brand">
+    <div class="t-icon">🎓</div>
+    <div><div class="t-title">Computer Institute</div><div class="t-sub">Management System</div></div>
+  </div>
+  <div class="t-right">
+    <span class="fbs sync" id="fbStatus">🔄 Connecting…</span>
+    <span class="t-date" id="topDate"></span>
+  </div>
+</div>
+
+
+<!-- BRANCH SELECTOR BAR -->
+<div class="branch-bar" id="branchBar">
+  <span class="branch-lbl">🏢 Branch:</span>
+  <div class="branch-btns" id="branchBtns">
+    <button class="bbtn active" data-branch="branch1" onclick="selectBranch('branch1',this)">
+      <span class="bdot"></span><span id="bname-branch1">Branch 1</span>
+    </button>
+    <button class="bbtn" data-branch="branch2" onclick="selectBranch('branch2',this)">
+      <span class="bdot"></span><span id="bname-branch2">Branch 2</span>
+    </button>
+  </div>
+  <button class="branch-manage-btn" onclick="openBranchModal()">⚙️ Manage Branches</button>
+</div>
+
+<!-- BRANCH MODAL -->
+<div class="modal-bg" id="branchModal">
+  <div class="modal">
+    <div class="modal-title">⚙️ Manage Branches</div>
+    <div class="modal-sub">Rename branches or add new ones. Data is stored separately for each branch.</div>
+    <div class="branch-list" id="branchModalList"></div>
+    <div class="add-branch-row">
+      <input type="text" id="newBranchName" placeholder="New branch name…" maxlength="40">
+      <button class="btn btn-p btn-sm" onclick="addBranch()">+ Add</button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-gh btn-sm" onclick="closeBranchModal()">Cancel</button>
+      <button class="btn btn-g btn-sm" onclick="saveBranchNames()">✅ Save Names</button>
+    </div>
+  </div>
+</div>
+<div class="nav-wrap">
+  <button class="ntab active" onclick="switchTab('dashboard',this)">📊 Dashboard</button>
+  <button class="ntab" onclick="switchTab('student',this)">👤 Add Student</button>
+  <button class="ntab" onclick="switchTab('receipt',this)">💰 Add Receipt</button>
+  <button class="ntab" onclick="switchTab('income',this)">💹 Income &amp; Expenses</button>
+  <button class="ntab" onclick="switchTab('records',this)">🗃️ Records <span class="nbadge" id="totalBadge">0</span></button>
+</div>
+
+<div class="main">
+
+<!-- DASHBOARD -->
+<div class="panel active" id="panel-dashboard">
+  <div class="prh">Computer Institute — Fees Pendancy Report</div>
+  <div class="prh" style="font-size:13px;font-weight:600;color:#555;margin-top:-6px" id="prhBranch"></div>
+  <div class="prs" id="prs"></div>
+  <div class="krow kr4 no-print">
+    <div class="kc kb"><div class="ki">👥</div><div class="kv" id="kpi-s">0</div><div class="kl">Total Students</div></div>
+    <div class="kc kg"><div class="ki">✅</div><div class="kv" id="kpi-c">₹0</div><div class="kl">Total Collected</div></div>
+    <div class="kc kr"><div class="ki">⏳</div><div class="kv" id="kpi-p">₹0</div><div class="kl">Total Pending</div></div>
+    <div class="kc ka"><div class="ki">💵</div><div class="kv" id="kpi-t">₹0</div><div class="kl">Total Fees</div></div>
+  </div>
+  <div class="mfbar no-print">
+    <span class="mfl">📅 Month Filter:</span>
+    <div class="mfch" id="mfch"><button class="mfc all active" onclick="setMonth('all',this)">All Months</button></div>
+  </div>
+  <div class="pcard">
+    <div class="phdr">
+      <span class="ptitle">⚠️ Students with Pending Fees <span id="dashBranchTag" class="branch-tag"></span></span>
+      <div class="pacts no-print">
+        <button class="btn btn-sm btn-g" onclick="exportPendXL()">📊 Export Excel</button>
+        <button class="btn btn-sm btn-p" onclick="printRep()">🖨️ Print</button>
+      </div>
+    </div>
+    <div id="pendList"></div>
+    <div style="overflow-x:auto">
+      <table id="pendTbl" style="display:none">
+        <thead><tr><th>#</th><th>Roll No</th><th>Form No</th><th>Student Name</th><th>Course</th><th>Adm. Date</th><th>Contact</th><th>Total (₹)</th><th>Paid (₹)</th><th>Pending (₹)</th><th>Status</th></tr></thead>
+        <tbody id="pendTb"></tbody><tfoot id="pendFt"></tfoot>
+      </table>
+    </div>
+    <div style="padding:14px 18px;border-top:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px"><span>Collection Progress</span><span id="pPct">0%</span></div>
+      <div class="pbg"><div class="pf" id="pBar" style="width:0%"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ADD STUDENT -->
+<div class="panel" id="panel-student">
+  <div class="fc">
+    <div class="fch"><div class="fci ib">👤</div><div><div class="ft">New Student Admission</div><div class="fd">Roll No auto-generates as SSE0001, SSE0002… Form No assigned after Course Type selected.</div></div></div>
+    <div class="fb">
+      <div class="sl">Auto-Generated IDs</div>
+      <div class="fg fg4" style="margin-bottom:14px">
+        <div class="field"><label>Roll No (Auto)</label><input type="text" id="s_roll" readonly style="background:#F0F5FF;color:var(--blue);font-weight:800;font-size:15px;letter-spacing:.5px"></div>
+        <div class="field"><label>Form No (Auto)</label><input type="text" id="s_form" readonly placeholder="Choose Course Type →" style="background:#F5F7FC;color:var(--muted)"></div>
+      </div>
+      <div class="sl">Personal Information</div>
+      <div class="fg">
+        <div class="field ff"><label>Full Name <span class="req">*</span></label><input type="text" id="s_name" placeholder="First Middle Last"><span class="err-msg">Enter student name</span></div>
+        <div class="field ff"><label>Address <span class="req">*</span></label><textarea id="s_addr" placeholder="Room / Building / Area / City"></textarea><span class="err-msg">Enter address</span></div>
+        <div class="field"><label>Date of Birth <span class="req">*</span></label><input type="date" id="s_dob"><span class="err-msg">Select DOB</span></div>
+        <div class="field"><label>Contact No. <span class="req">*</span></label><input type="tel" id="s_contact" placeholder="10-digit mobile" maxlength="10"><span class="err-msg">Valid 10-digit number required</span></div>
+      </div>
+      <div class="sl">Admission &amp; Course</div>
+      <div class="fg">
+        <div class="field"><label>Admission Date <span class="req">*</span></label><input type="date" id="s_admdate"><span class="err-msg">Select date</span></div>
+        <div class="field"><label>Course Type <span class="req">*</span></label>
+          <select id="s_ctype"><option value="">— Select —</option><option>Computer</option><option>Typing</option><option>Tally</option><option>DTP</option><option>Hardware</option><option>Other</option></select>
+          <span class="err-msg">Select course type</span></div>
+        <div class="field"><label>1st Course</label>
+          <select id="s_c1"><option value="">— Select —</option><option>MS-Office</option><option>MS-CIT</option><option>English Typing (Com)</option><option>Marathi Typing (Com)</option><option>Tally ERP 9</option><option>Tally Prime</option><option>DTP (PageMaker)</option><option>Hardware &amp; Networking</option><option>C / C++</option><option>Python</option><option>Web Design</option><option>Other</option></select></div>
+        <div class="field"><label>2nd Course</label>
+          <select id="s_c2"><option value="">— None —</option><option>MS-Office</option><option>MS-CIT</option><option>English Typing (Com)</option><option>Marathi Typing (Com)</option><option>Tally ERP 9</option><option>Tally Prime</option><option>Other</option></select></div>
+        <div class="field"><label>3rd Course</label>
+          <select id="s_c3"><option value="">— None —</option><option>MS-Office</option><option>MS-CIT</option><option>English Typing (Com)</option><option>Marathi Typing (Com)</option><option>Tally ERP 9</option><option>Other</option></select></div>
+        <div class="field"><label>Total Fees (₹) <span class="req">*</span></label><input type="number" id="s_fees" placeholder="e.g. 2500" min="0"><span class="err-msg">Enter valid fees amount</span></div>
+      </div>
+    </div>
+    <div class="fa"><button class="btn btn-p" onclick="saveStudent()">✅ Save Student</button><button class="btn btn-gh" onclick="clearSF()">🔄 Clear</button></div>
+  </div>
+  <div class="tw">
+    <div class="th"><span class="tt">Registered Students</span><span class="tc" id="sCnt">0</span></div>
+    <div style="overflow-x:auto"><table><thead><tr><th>Roll No</th><th>Form No</th><th>Name</th><th>Course</th><th>Admitted</th><th>Total (₹)</th><th>Paid (₹)</th><th>Pending (₹)</th><th>Status</th><th></th></tr></thead><tbody id="sTb"></tbody></table></div>
+  </div>
+</div>
+
+<!-- ADD RECEIPT -->
+<div class="panel" id="panel-receipt">
+  <div class="fc">
+    <div class="fch"><div class="fci ig">💰</div><div><div class="ft">Fee Receipt Entry</div><div class="fd">Enter Receipt No manually. Select Form No — student name auto-fills automatically.</div></div></div>
+    <div class="fb">
+      <div class="sl">Receipt Details</div>
+      <div class="fg fg3">
+        <div class="field"><label>Receipt No <span class="req">*</span></label><input type="text" id="r_no" placeholder="e.g. 001 or REC001" style="font-weight:700;font-size:14px"><span class="err-msg">Enter receipt number</span></div>
+        <div class="field"><label>Receipt Date <span class="req">*</span></label><input type="date" id="r_date"><span class="err-msg">Select date</span></div>
+        <div class="field"><label>Payment Mode <span class="req">*</span></label><select id="r_mode"><option value="">— Select —</option><option>Cash</option><option>Online</option><option>UPI</option><option>Cheque</option><option>DD</option></select><span class="err-msg">Select mode</span></div>
+      </div>
+      <div class="sl">Student &amp; Payment Info</div>
+      <div class="fg">
+        <div class="field"><label>Form No <span class="req">*</span></label><select id="r_form" onchange="fillRS()"><option value="">— Select Student —</option></select><span class="err-msg">Select student</span></div>
+        <div class="field"><label>Student Name (Auto)</label><input type="text" id="r_name" readonly style="background:#F5F7FC"></div>
+        <div class="field"><label>Course (Auto)</label><input type="text" id="r_course" readonly style="background:#F5F7FC"></div>
+        <div class="field"><label>Amount (₹) <span class="req">*</span></label><input type="number" id="r_amount" placeholder="Amount received" min="1"><span class="err-msg">Enter amount</span></div>
+        <div class="field"><label>Fees Type <span class="req">*</span></label><select id="r_ftype"><option value="">— Select —</option><option>Course Fee</option><option>Admission Fee</option><option>Exam Fee</option><option>Certificate Fee</option><option>Other</option></select><span class="err-msg">Select type</span></div>
+        <div class="field"><label>Next Instalment Date</label><input type="date" id="r_next"></div>
+        <div class="field ff"><label>Remarks</label><input type="text" id="r_remarks" placeholder="Optional note"></div>
+      </div>
+    </div>
+    <div class="fa"><button class="btn btn-g" onclick="saveReceipt()">✅ Save Receipt</button><button class="btn btn-gh" onclick="clearRF()">🔄 Clear</button></div>
+  </div>
+  <div class="tw">
+    <div class="th"><span class="tt">Receipt History</span><span class="tc" id="rCnt">0</span></div>
+    <div style="overflow-x:auto"><table><thead><tr><th>Receipt No</th><th>Form No</th><th>Student</th><th>Date</th><th>Amount (₹)</th><th>Mode</th><th>Type</th><th></th></tr></thead><tbody id="rTb"></tbody></table></div>
+  </div>
+</div>
+
+<!-- INCOME & EXPENSES -->
+<div class="panel" id="panel-income">
+  <div class="krow kr3">
+    <div class="kc kg"><div class="ki">📈</div><div class="kv" id="ie-i">₹0</div><div class="kl">Total Income</div></div>
+    <div class="kc kr"><div class="ki">📉</div><div class="kv" id="ie-e">₹0</div><div class="kl">Total Expenses</div></div>
+    <div class="kc kb"><div class="ki">💰</div><div class="kv" id="ie-n">₹0</div><div class="kl" id="ie-nl">Net Balance</div></div>
+  </div>
+  <!-- IE Month Filter -->
+  <div class="mfbar" id="ie-mfbar">
+    <span class="mfl">📅 Month Filter:</span>
+    <div class="mfch" id="ie-mfch">
+      <button class="mfc all active" onclick="setIEMonth('all',this)">All Months</button>
+    </div>
+  </div>
+
+  <div class="ietabs">
+    <button class="ietab active" id="iet-i" onclick="switchIE('i',this)">📈 Income</button>
+    <button class="ietab" id="iet-e" onclick="switchIE('e',this)">📉 Expenses</button>
+  </div>
+
+  <!-- Income panel -->
+  <div id="iep-i">
+    <div class="fc">
+      <div class="fch"><div class="fci ig">📈</div><div><div class="ft" id="inc-ft">Add Income</div><div class="fd">Fee receipts appear here automatically. Add other income sources below.</div></div></div>
+      <div class="fb">
+        <input type="hidden" id="inc-eid">
+        <div class="fg fg3">
+          <div class="field"><label>Date <span class="req">*</span></label><input type="date" id="inc-d"><span class="err-msg">Select date</span></div>
+          <div class="field"><label>Category <span class="req">*</span></label><select id="inc-c"><option value="">— Select —</option><option>Course Fee</option><option>Admission Fee</option><option>Exam Fee</option><option>Certificate Fee</option><option>Registration Fee</option><option>Library Fee</option><option>Other Income</option></select><span class="err-msg">Select category</span></div>
+          <div class="field"><label>Amount (₹) <span class="req">*</span></label><input type="number" id="inc-a" placeholder="e.g. 2500" min="1"><span class="err-msg">Enter amount</span></div>
+          <div class="field"><label>Payment Mode</label><select id="inc-m"><option value="">— Select —</option><option>Cash</option><option>Online</option><option>UPI</option><option>Cheque</option></select></div>
+          <div class="field"><label>Received From</label><input type="text" id="inc-f" placeholder="Student / Source name"></div>
+          <div class="field"><label>Description</label><input type="text" id="inc-ds" placeholder="Optional note"></div>
+        </div>
+      </div>
+      <div class="fa"><button class="btn btn-g" id="inc-sb" onclick="saveIncome()">✅ Save Income</button><button class="btn btn-gh" onclick="cancelInc()">🔄 Clear</button></div>
+    </div>
+    <div class="tw">
+      <div class="th"><span class="tt">📈 Income Records</span><div style="display:flex;align-items:center;gap:8px"><span id="ie-month-lbl" style="font-size:11px;color:var(--muted);font-weight:500"></span><span class="tc" id="iCnt">0</span></div></div>
+      <div style="overflow-x:auto"><table><thead><tr><th>#</th><th>Date</th><th>Category</th><th>From / Student</th><th>Mode</th><th>Description</th><th style="text-align:right">Amount (₹)</th><th>Actions</th></tr></thead><tbody id="iTb"></tbody><tfoot id="iFt"></tfoot></table></div>
+    </div>
+  </div>
+
+  <!-- Expense panel -->
+  <div id="iep-e" style="display:none">
+    <div class="fc">
+      <div class="fch"><div class="fci ia">📉</div><div><div class="ft" id="exp-ft">Add Expense</div><div class="fd">Record all money spent by the institute.</div></div></div>
+      <div class="fb">
+        <input type="hidden" id="exp-eid">
+        <div class="fg fg3">
+          <div class="field"><label>Date <span class="req">*</span></label><input type="date" id="exp-d"><span class="err-msg">Select date</span></div>
+          <div class="field"><label>Category <span class="req">*</span></label><select id="exp-c"><option value="">— Select —</option><option>Rent</option><option>Electricity Bill</option><option>Internet / Broadband</option><option>Staff Salary</option><option>Computer Hardware</option><option>Software / License</option><option>Stationery &amp; Printing</option><option>Maintenance &amp; Repair</option><option>Furniture</option><option>Marketing &amp; Advertising</option><option>Telephone Bill</option><option>Miscellaneous</option></select><span class="err-msg">Select category</span></div>
+          <div class="field"><label>Amount (₹) <span class="req">*</span></label><input type="number" id="exp-a" placeholder="e.g. 5000" min="1"><span class="err-msg">Enter amount</span></div>
+          <div class="field"><label>Payment Mode</label><select id="exp-m"><option value="">— Select —</option><option>Cash</option><option>Online</option><option>UPI</option><option>Cheque</option><option>NEFT</option></select></div>
+          <div class="field"><label>Paid To</label><input type="text" id="exp-t" placeholder="Vendor / Person name"></div>
+          <div class="field"><label>Description</label><input type="text" id="exp-ds" placeholder="Optional note"></div>
+        </div>
+      </div>
+      <div class="fa"><button class="btn btn-r" id="exp-sb" onclick="saveExpense()">✅ Save Expense</button><button class="btn btn-gh" onclick="cancelExp()">🔄 Clear</button></div>
+    </div>
+    <div class="tw">
+      <div class="th"><span class="tt">📉 Expense Records</span><div style="display:flex;align-items:center;gap:8px"><span id="ie-month-lbl2" style="font-size:11px;color:var(--muted);font-weight:500"></span><span class="tc" id="eCnt">0</span></div></div>
+      <div style="overflow-x:auto"><table><thead><tr><th>#</th><th>Date</th><th>Category</th><th>Paid To</th><th>Mode</th><th>Description</th><th style="text-align:right">Amount (₹)</th><th>Actions</th></tr></thead><tbody id="eTb"></tbody><tfoot id="eFt"></tfoot></table></div>
+    </div>
+  </div>
+</div>
+
+<!-- ALL RECORDS -->
+<div class="panel" id="panel-records">
+  <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+    <button class="btn btn-p" onclick="xCSV('students')">⬇️ Students CSV</button>
+    <button class="btn btn-g" onclick="xCSV('receipts')">⬇️ Receipts CSV</button>
+    <button class="btn btn-o" onclick="xCSV('income')">⬇️ Income CSV</button>
+    <button class="btn btn-r" onclick="xCSV('expense')">⬇️ Expenses CSV</button>
+  </div>
+  <div class="tw">
+    <div class="th"><span class="tt">All Students</span><span class="tc" id="asCnt">0</span></div>
+    <div style="overflow-x:auto"><table><thead><tr><th>Roll No</th><th>Form No</th><th>Name</th><th>Contact</th><th>Course</th><th>Admitted</th><th>Total (₹)</th><th>Paid (₹)</th><th>Pending (₹)</th><th>Status</th></tr></thead><tbody id="asTb"></tbody></table></div>
+  </div>
+  <div class="tw">
+    <div class="th"><span class="tt">All Receipts</span><span class="tc" id="arCnt">0</span></div>
+    <div style="overflow-x:auto"><table><thead><tr><th>Receipt No</th><th>Form No</th><th>Student</th><th>Date</th><th>Amount (₹)</th><th>Mode</th><th>Type</th></tr></thead><tbody id="arTb"></tbody></table></div>
+  </div>
+</div>
+
+</div><!-- /main -->
+<div class="toast" id="toast"><div class="tic">✓</div><span id="tMsg">Saved!</span></div>
+
+<script>
+
+// ════════════════════════════════════════════════════════════════
+// BRANCH MANAGEMENT
+// ════════════════════════════════════════════════════════════════
+// Branch data stored in localStorage so names persist across sessions
+// Each branch has its own Firestore sub-path: /branches/{branchId}/students etc.
+
+let currentBranch = 'branch1';
+let branches = {};   // { id: { name, color } }
+
+const BRANCH_COLORS = ['#3B9EFF','#1D9A6C','#F59E0B','#E53E3E','#8B5CF6','#0EA8A8'];
+
+function loadBranches() {
+  try {
+    const saved = localStorage.getItem('ci_branches');
+    if (saved) {
+      branches = JSON.parse(saved);
+    } else {
+      branches = {
+        branch1: { name: 'Branch 1', color: '#3B9EFF' },
+        branch2: { name: 'Branch 2', color: '#1D9A6C' }
+      };
+      saveBranchesLocal();
+    }
+    const savedCurrent = localStorage.getItem('ci_current_branch');
+    if (savedCurrent && branches[savedCurrent]) currentBranch = savedCurrent;
+    else currentBranch = Object.keys(branches)[0] || 'branch1';
+  } catch(e) {
+    branches = { branch1:{name:'Branch 1',color:'#3B9EFF'}, branch2:{name:'Branch 2',color:'#1D9A6C'} };
+  }
+}
+
+function saveBranchesLocal() {
+  try { localStorage.setItem('ci_branches', JSON.stringify(branches)); } catch(e){}
+}
+
+function renderBranchBar() {
+  const btns = document.getElementById('branchBtns');
+  if (!btns) return;
+  btns.innerHTML = Object.entries(branches).map(([id, b]) => `
+    <button class="bbtn${currentBranch===id?' active':''}" data-branch="${id}" onclick="selectBranch('${id}',this)">
+      <span class="bdot" style="background:${b.color}"></span>
+      ${b.name}
+    </button>`).join('');
+  // Update topbar subtitle
+  const sub = document.querySelector('.t-sub');
+  if (sub) sub.textContent = '📍 ' + (branches[currentBranch]?.name || currentBranch);
+  // Update branch indicator color
+  const bar = document.getElementById('branchBar');
+  if (bar) bar.style.borderBottomColor = branches[currentBranch]?.color || 'rgba(255,255,255,.08)';
+}
+
+function selectBranch(id, btn) {
+  if (!branches[id]) return;
+  currentBranch = id;
+  try { localStorage.setItem('ci_current_branch', id); } catch(e){}
+  renderBranchBar();
+  // Restart listeners for new branch
+  showOv('Switching to ' + branches[id].name + '…');
+  startListeners();
+}
+
+// ── Branch Modal ──────────────────────────────────────────────────
+function openBranchModal() {
+  renderBranchModalList();
+  document.getElementById('branchModal').classList.add('open');
+}
+function closeBranchModal() {
+  document.getElementById('branchModal').classList.remove('open');
+}
+// Close modal on background click
+document.addEventListener('click', e => {
+  if (e.target.id === 'branchModal') closeBranchModal();
+});
+
+function renderBranchModalList() {
+  const list = document.getElementById('branchModalList');
+  if (!list) return;
+  const ids = Object.keys(branches);
+  list.innerHTML = ids.map((id, idx) => `
+    <div class="branch-item" data-id="${id}">
+      <div class="bcolor" style="background:${branches[id].color}" onclick="cycleBranchColor('${id}',this)" title="Click to change color"></div>
+      <input type="text" value="${branches[id].name}" id="bedit-${id}" placeholder="Branch name" maxlength="40">
+      ${ids.length > 1
+        ? `<button class="bdel" onclick="deleteBranch('${id}')" title="Delete branch">🗑</button>`
+        : '<span style="width:22px"></span>'}
+    </div>`).join('');
+}
+
+function cycleBranchColor(id, dot) {
+  const cur = BRANCH_COLORS.indexOf(branches[id]?.color || BRANCH_COLORS[0]);
+  const next = BRANCH_COLORS[(cur + 1) % BRANCH_COLORS.length];
+  branches[id].color = next;
+  dot.style.background = next;
+}
+
+function saveBranchNames() {
+  Object.keys(branches).forEach(id => {
+    const inp = document.getElementById('bedit-' + id);
+    if (inp && inp.value.trim()) branches[id].name = inp.value.trim();
+  });
+  saveBranchesLocal();
+  renderBranchBar();
+  closeBranchModal();
+  showToast('✅ Branch names saved!');
+}
+
+function addBranch() {
+  const inp = document.getElementById('newBranchName');
+  const name = inp?.value?.trim();
+  if (!name) { showToast('Enter a branch name'); return; }
+  const id = 'branch_' + Date.now();
+  const colorIdx = Object.keys(branches).length % BRANCH_COLORS.length;
+  branches[id] = { name, color: BRANCH_COLORS[colorIdx] };
+  saveBranchesLocal();
+  if (inp) inp.value = '';
+  renderBranchModalList();
+  showToast('✅ Branch "' + name + '" added!');
+}
+
+function deleteBranch(id) {
+  if (Object.keys(branches).length <= 1) { showToast('Cannot delete the last branch'); return; }
+  if (!confirm('Delete branch "' + branches[id]?.name + '"? The data in Firebase will remain but will no longer show here.')) return;
+  delete branches[id];
+  saveBranchesLocal();
+  if (currentBranch === id) {
+    currentBranch = Object.keys(branches)[0];
+    try { localStorage.setItem('ci_current_branch', currentBranch); } catch(e){}
+  }
+  renderBranchModalList();
+  renderBranchBar();
+  showToast('🗑 Branch deleted');
+}
+
+// ── Branch-aware Firestore path helper ───────────────────────────
+// All data is stored under: /branches/{branchId}/{collection}/{docId}
+// This gives complete data isolation per branch
+function branchCol(colName) {
+  return db.collection('branches').doc(currentBranch).collection(colName);
+}
+async function dbSetBranch(col, id, data) {
+  if (!db) throw new Error('Not connected');
+  const withBranch = { ...data, branch: currentBranch };
+  await branchCol(col).doc(String(id)).set(JSON.parse(JSON.stringify(withBranch)));
+}
+async function dbDelBranch(col, id) {
+  if (!db) return;
+  await branchCol(col).doc(String(id)).delete();
+}
+
+// === FIREBASE ===
+let db=null;
+function setFb(s,t){const e=document.getElementById('fbStatus');if(e){e.className='fbs '+s;e.textContent=t;}}
+function initFb(){
+  try{
+    const app=firebase.apps.length?firebase.app():firebase.initializeApp(FIREBASE_CONFIG);
+    db=firebase.firestore();
+    db.enablePersistence({synchronizeTabs:true}).catch(e=>console.warn('Persist:',e.code));
+    setFb('sync','🔄 Connecting…');
+    return true;
+  }catch(e){console.error('FB init:',e);setFb('err','❌ Failed');return false;}
+}
+
+// === DATA ===
+let students=[],receipts=[],incomes=[],expenses=[],activeMonth='all';
+
+// === DB HELPERS ===
+function showOv(m='Saving…'){document.getElementById('ovm').textContent=m;document.getElementById('ov').classList.add('show');}
+function hideOv(){document.getElementById('ov').classList.remove('show');}
+async function dbSet(col,id,data){
+  if(!db)throw new Error('Not connected');
+  await db.collection(col).doc(String(id)).set(JSON.parse(JSON.stringify(data)));
+}
+async function dbDel(col,id){if(!db)return;await db.collection(col).doc(String(id)).delete();}
+
+// === LISTENERS — all 4 collections ===
+// Track active Firestore listeners so we can detach when switching branches
+let _unsubListeners = [];
+function detachListeners() {
+  _unsubListeners.forEach(unsub => { try { unsub(); } catch(e){} });
+  _unsubListeners = [];
+}
+
+function startListeners(){
+  if(!db){hideOv();showRulesHelp();return;}
+  detachListeners(); // detach old branch listeners first
+  // Reset data arrays
+  students=[];receipts=[];incomes=[];expenses=[];
+  refreshAll();
+
+  // Students — branch-scoped
+  const u1 = branchCol('students').orderBy('srNo').onSnapshot(snap=>{
+    students=snap.docs.map(d=>({id:d.id,...d.data()}));
+    refreshAll();buildMonthChips();
+    setFb('ok','✅ Live — '+( branches[currentBranch]?.name||currentBranch));hideOv();
+  },err=>{
+    console.error('Students:',err.code,err.message);
+    setFb('err','🔒 Rules Error');hideOv();showRulesHelp();
+  });
+  _unsubListeners.push(u1);
+
+  // Receipts — branch-scoped
+  const u2 = branchCol('receipts').orderBy('createdAt').onSnapshot(snap=>{
+    receipts=snap.docs.map(d=>({id:d.id,...d.data()}));
+    refreshAll();renderIncome();buildIEMonthChips();
+  },err=>console.error('Receipts:',err.code));
+  _unsubListeners.push(u2);
+
+  // Incomes — branch-scoped
+  const u3 = branchCol('incomes').orderBy('createdAt').onSnapshot(snap=>{
+    incomes=snap.docs.map(d=>({id:d.id,...d.data()}));
+    renderIncome();renderIEKpi();buildIEMonthChips();
+  },err=>console.error('Incomes:',err.code));
+  _unsubListeners.push(u3);
+
+  // Expenses — branch-scoped
+  const u4 = branchCol('expenses').orderBy('createdAt').onSnapshot(snap=>{
+    expenses=snap.docs.map(d=>({id:d.id,...d.data()}));
+    renderExpense();renderIEKpi();buildIEMonthChips();
+  },err=>console.error('Expenses:',err.code));
+  _unsubListeners.push(u4);
+}
+
+// === INIT ===
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('topDate').textContent=
+    new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  const today=new Date().toISOString().split('T')[0];
+  ['r_date','r_next','s_admdate','inc-d','exp-d'].forEach(id=>{const e=document.getElementById(id);if(e)e.value=today;});
+  document.getElementById('s_ctype').addEventListener('change',updateFormNo);
+  // Load branch config FIRST, then init Firebase
+  loadBranches();
+  renderBranchBar();
+  const ok=initFb();
+  if(ok){showOv('Loading from Firebase…');startListeners();}
+  else showToast('⚠️ Firebase offline');
+  updateRoll();
+});
+
+// === AUTO-NUMBERS ===
+function genRoll(){
+  const nums=students.map(s=>{const m=String(s.rollStr||'').match(/SSE(\d+)/);return m?parseInt(m[1]):0;});
+  const n=nums.length?Math.max(...nums)+1:1;
+  return 'SSE'+String(n).padStart(4,'0');
+}
+function genRec(){
+  const nums=receipts.map(r=>{const m=String(r.recNo||'').match(/REC(\d+)/);return m?parseInt(m[1]):0;});
+  const n=nums.length?Math.max(...nums)+1:1;
+  return 'REC'+String(n).padStart(4,'0');
+}
+function updateRoll(){const e=document.getElementById('s_roll');if(e)e.value=genRoll();}
+function updateRec(){const e=document.getElementById('r_no');if(e)e.value=genRec();}
+function updateFormNo(){
+  const t=document.getElementById('s_ctype').value;
+  if(!t)return;
+  const p=t==='Computer'?'C':t==='Typing'?'T':t==='Tally'?'TA':t.charAt(0).toUpperCase();
+  document.getElementById('s_form').value=p+genRoll().replace('SSE','');
+}
+
+// === MONTH FILTER ===
+function buildMonthChips(){
+  const months=[...new Set(students.map(s=>s.month).filter(Boolean))].sort();
+  const wrap=document.getElementById('mfch');
+  wrap.innerHTML=`<button class="mfc all${activeMonth==='all'?' active':''}" onclick="setMonth('all',this)">All Months</button>`;
+  months.forEach(m=>{wrap.innerHTML+=`<button class="mfc${activeMonth===m?' active':''}" onclick="setMonth('${m}',this)">${m}</button>`;});
+}
+function setMonth(m,btn){
+  activeMonth=m;
+  document.querySelectorAll('.mfc').forEach(c=>c.classList.remove('active','all'));
+  btn.classList.add('active');if(m==='all')btn.classList.add('all');
+  renderDash();
+}
+function filtStu(){return activeMonth==='all'?students:students.filter(s=>s.month===activeMonth);}
+
+// === TAB ===
+function switchTab(n,btn){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.ntab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('panel-'+n).classList.add('active');
+  if(btn)btn.classList.add('active');
+  refreshAll();
+}
+function switchIE(tab,btn){
+  document.querySelectorAll('.ietab').forEach(t=>t.classList.remove('active'));btn.classList.add('active');
+  document.getElementById('iep-i').style.display=tab==='i'?'block':'none';
+  document.getElementById('iep-e').style.display=tab==='e'?'block':'none';
+}
+function refreshAll(){
+  renderDash();renderStuTbl();renderRecTbl();renderAllRec();
+  refreshDD();updateRoll();
+  const e=document.getElementById('totalBadge');if(e)e.textContent=students.length;
+  renderIEKpi();renderIncome();renderExpense();
+}
+
+// === SAVE STUDENT ===
+async function saveStudent(){
+  if(!chk([['s_name',v=>v.trim()!=='','Enter name'],['s_addr',v=>v.trim()!=='','Enter address'],
+    ['s_dob',v=>v!=='','Select DOB'],['s_contact',v=>/^\d{10}$/.test(v),'Valid 10-digit number'],
+    ['s_admdate',v=>v!=='','Select date'],['s_ctype',v=>v!=='','Select course type'],
+    ['s_fees',v=>v!==''&&Number(v)>0,'Enter fees']])) return;
+  const rollStr=genRoll();
+  const ctype=document.getElementById('s_ctype').value;
+  const p=ctype==='Computer'?'C':ctype==='Typing'?'T':ctype==='Tally'?'TA':ctype.charAt(0).toUpperCase();
+  const formNo=p+rollStr.replace('SSE','');
+  const admDate=document.getElementById('s_admdate').value;
+  const aObj=new Date(admDate);
+  const month=aObj.toLocaleString('en-IN',{month:'short'})+'-'+String(aObj.getFullYear()).slice(2);
+  const s={srNo:students.length+1,rollStr,formNo,month,
+    name:document.getElementById('s_name').value.trim(),
+    addr:document.getElementById('s_addr').value.trim(),
+    dob:document.getElementById('s_dob').value,
+    contact:document.getElementById('s_contact').value,
+    admDate,cType:ctype,
+    c1:document.getElementById('s_c1').value,c2:document.getElementById('s_c2').value,c3:document.getElementById('s_c3').value,
+    totalFees:parseFloat(document.getElementById('s_fees').value),feesPaid:0,
+    instalments:[0,0,0,0,0,0,0,0],lastInstDate:'',createdAt:new Date().toISOString()};
+  showOv('Saving student…');
+  try{await dbSetBranch('students',formNo,s);showToast('✅ '+s.name+' saved! Roll: '+rollStr);clearSF();}
+  catch(e){showToast('❌ Save failed — check Firestore rules');showRulesHelp();}
+  finally{hideOv();}
+}
+
+// === SAVE RECEIPT ===
+function fillRS(){
+  const fno=document.getElementById('r_form').value;
+  const s=students.find(x=>x.formNo===fno);
+  if(s){document.getElementById('r_name').value=s.name;document.getElementById('r_course').value=[s.c1,s.c2,s.c3].filter(Boolean).join(', ')||s.cType;}
+}
+async function saveReceipt(){
+  if(!chk([['r_no',v=>v.trim()!=='','Enter receipt number'],['r_form',v=>v!=='','Select student'],['r_date',v=>v!=='','Select date'],
+    ['r_amount',v=>v!==''&&Number(v)>0,'Enter amount'],['r_mode',v=>v!=='','Select mode'],
+    ['r_ftype',v=>v!=='','Select type']])) return;
+  const recNo=document.getElementById('r_no').value.trim();
+  const formNo=document.getElementById('r_form').value;
+  const s=students.find(x=>x.formNo===formNo);
+  const amount=parseFloat(document.getElementById('r_amount').value);
+  const date=document.getElementById('r_date').value;
+  const dObj=new Date(date);
+  const month=dObj.toLocaleString('en-IN',{month:'short'})+'-'+String(dObj.getFullYear()).slice(2);
+  const rec={recNo,no:receipts.length+1,formNo,
+    name:document.getElementById('r_name').value,date,amount,month,
+    course:document.getElementById('r_course').value,
+    next:document.getElementById('r_next').value,
+    ftype:document.getElementById('r_ftype').value,
+    mode:document.getElementById('r_mode').value,
+    remarks:document.getElementById('r_remarks').value,
+    createdAt:new Date().toISOString()};
+  showOv('Saving receipt…');
+  try{
+    await dbSetBranch('receipts',recNo,rec);
+    if(s)await dbSetBranch('students',formNo,{...s,feesPaid:(s.feesPaid||0)+amount,lastInstDate:date});
+    showToast('💰 Receipt '+recNo+' saved — ₹'+fmt(amount));clearRF();
+  }catch(e){showToast('❌ Save failed — check Firestore rules');showRulesHelp();}
+  finally{hideOv();}
+}
+
+
+// === IE MONTH FILTER ===
+let activeIEMonth = 'all';
+
+function buildIEMonthChips() {
+  // Collect all months from receipts + manual incomes + expenses
+  const rMonths = receipts.map(r => r.month).filter(Boolean);
+  const iMonths = incomes.map(i => {
+    if (!i.date) return null;
+    const d = new Date(i.date);
+    return d.toLocaleString('en-IN', {month:'short'}) + '-' + String(d.getFullYear()).slice(2);
+  }).filter(Boolean);
+  const eMonths = expenses.map(e => {
+    if (!e.date) return null;
+    const d = new Date(e.date);
+    return d.toLocaleString('en-IN', {month:'short'}) + '-' + String(d.getFullYear()).slice(2);
+  }).filter(Boolean);
+
+  const all = [...new Set([...rMonths, ...iMonths, ...eMonths])].sort((a, b) => {
+    // Sort by date: parse 'Apr-25' style strings
+    const parseM = s => { try { return new Date('1 '+s.replace('-20','-20').replace(/(\w+)-(\d+)/,'$1 20$2')); } catch { return new Date(0); } };
+    return parseM(a) - parseM(b);
+  });
+
+  const wrap = document.getElementById('ie-mfch');
+  if (!wrap) return;
+  wrap.innerHTML = `<button class="mfc all${activeIEMonth==='all'?' active':''}" onclick="setIEMonth('all',this)">All Months</button>`;
+  all.forEach(m => {
+    wrap.innerHTML += `<button class="mfc${activeIEMonth===m?' active':''}" onclick="setIEMonth('${m}',this)">${m}</button>`;
+  });
+}
+
+function setIEMonth(m, btn) {
+  activeIEMonth = m;
+  document.querySelectorAll('#ie-mfch .mfc').forEach(c => c.classList.remove('active', 'all'));
+  btn.classList.add('active');
+  if (m === 'all') btn.classList.add('all');
+  renderIEKpi();
+  renderIncome();
+  renderExpense();
+}
+
+function getRecordMonth(dateStr) {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr);
+    return d.toLocaleString('en-IN', {month:'short'}) + '-' + String(d.getFullYear()).slice(2);
+  } catch { return ''; }
+}
+
+function filtIEReceipts() {
+  if (activeIEMonth === 'all') return receipts;
+  return receipts.filter(r => (r.month || getRecordMonth(r.date)) === activeIEMonth);
+}
+function filtIEIncomes() {
+  if (activeIEMonth === 'all') return incomes;
+  return incomes.filter(i => getRecordMonth(i.date) === activeIEMonth);
+}
+function filtIEExpenses() {
+  if (activeIEMonth === 'all') return expenses;
+  return expenses.filter(e => getRecordMonth(e.date) === activeIEMonth);
+}
+
+// === INCOME CRUD ===
+function renderIEKpi(){
+  const fr=filtIEReceipts(), fi2=filtIEIncomes(), fe=filtIEExpenses();
+  const feeInc = fr.reduce((a,r)=>a+(r.amount||0),0);
+  const manInc = fi2.reduce((a,i)=>a+(i.amount||0),0);
+  const ti=feeInc+manInc, te=fe.reduce((a,e)=>a+(e.amount||0),0), net=ti-te;
+  st('ie-i','₹'+fmt(ti));st('ie-e','₹'+fmt(te));
+  st('ie-n',(net<0?'-':'')+'₹'+fmt(Math.abs(net)));
+  st('ie-nl',net>=0?'Net Profit':'Net Loss');
+  const ne=document.getElementById('ie-n');if(ne)ne.style.color=net>=0?'var(--green)':'var(--red)';
+  buildIEMonthChips();
+}
+function renderIncome(){
+  // Fee receipts + manual incomes combined — filtered by activeIEMonth
+  const filtR = filtIEReceipts();
+  const filtI = filtIEIncomes();
+  const feeRows=filtR.map(r=>({_fee:true,id:r.id,date:r.date,category:r.ftype||'Course Fee',amount:r.amount||0,mode:r.mode,from:r.name,desc:r.formNo+(r.recNo?' • '+r.recNo:''),createdAt:r.createdAt||''}));
+  const manRows=filtI.map(i=>({_fee:false,...i}));
+  const all=[...feeRows,...manRows].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const tb=document.getElementById('iTb'),ft=document.getElementById('iFt');
+  if(!tb)return;
+  tb.innerHTML=all.map((row,i)=>`<tr>
+    <td>${i+1}</td><td>${fmtD(row.date)}</td>
+    <td><span class="pill pg">${row.category||'—'}</span></td>
+    <td>${row.from||'—'}</td>
+    <td>${row.mode?'<span class="pill pb">'+row.mode+'</span>':'—'}</td>
+    <td style="color:var(--muted);font-size:11px">${row.desc||'—'}</td>
+    <td style="text-align:right;font-weight:700;color:var(--green)">₹${fmt(row.amount)}</td>
+    <td style="white-space:nowrap">${row._fee
+      ?'<span style="font-size:10px;color:var(--muted)">Fee Receipt</span>'
+      :`<button class="abtn ae" onclick="editInc('${row.id}')">✏️</button> <button class="abtn ad" onclick="delInc('${row.id}')">🗑</button>`}</td>
+  </tr>`).join('');
+  const tot=all.reduce((a,r)=>a+(r.amount||0),0);
+  if(ft)ft.innerHTML=`<tr><td colspan="6" style="text-align:right">TOTAL INCOME</td><td style="text-align:right;color:var(--green)">₹${fmt(tot)}</td><td></td></tr>`;
+  st('iCnt',all.length);
+  const ml=activeIEMonth==='all'?'':'Showing: '+activeIEMonth;
+  st('ie-month-lbl',ml); st('ie-month-lbl2',ml);
+}
+async function saveIncome(){
+  if(!chk([['inc-d',v=>v!=='','Select date'],['inc-c',v=>v!=='','Select category'],['inc-a',v=>v!==''&&Number(v)>0,'Enter amount']])) return;
+  const eid=document.getElementById('inc-eid').value;
+  const data={date:g('inc-d'),category:g('inc-c'),amount:parseFloat(g('inc-a')),mode:g('inc-m'),from:g('inc-f').trim(),desc:g('inc-ds').trim(),
+    createdAt:eid?(incomes.find(i=>i.id===eid)?.createdAt||new Date().toISOString()):new Date().toISOString(),updatedAt:new Date().toISOString()};
+  const docId=eid||('INC-'+Date.now());
+  showOv(eid?'Updating…':'Saving income…');
+  try{await dbSetBranch('incomes',docId,data);showToast(eid?'✏️ Updated!':'📈 Income saved — ₹'+fmt(data.amount));cancelInc();}
+  catch(e){showToast('❌ Save failed');}finally{hideOv();}
+}
+function editInc(id){
+  const i=incomes.find(x=>x.id===id);if(!i)return;
+  s('inc-eid',id);s('inc-d',i.date||'');s('inc-c',i.category||'');s('inc-a',i.amount||'');s('inc-m',i.mode||'');s('inc-f',i.from||'');s('inc-ds',i.desc||'');
+  st('inc-ft','✏️ Edit Income');document.getElementById('inc-sb').textContent='✅ Update Income';
+  switchIE('i',document.getElementById('iet-i'));
+  document.querySelector('#iep-i .fc').scrollIntoView({behavior:'smooth'});
+}
+function cancelInc(){
+  s('inc-eid','');['inc-c','inc-a','inc-m','inc-f','inc-ds'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  const d=document.getElementById('inc-d');if(d)d.value=new Date().toISOString().split('T')[0];
+  st('inc-ft','Add Income');document.getElementById('inc-sb').textContent='✅ Save Income';
+  document.querySelectorAll('#iep-i .field.error').forEach(f=>f.classList.remove('error'));
+}
+async function delInc(id){
+  if(!confirm('Delete this income?'))return;showOv('Deleting…');
+  try{await dbDelBranch('incomes',id);showToast('🗑 Income deleted');}catch(e){showToast('❌ Failed');}finally{hideOv();}
+}
+
+// === EXPENSE CRUD ===
+function renderExpense(){
+  const tb=document.getElementById('eTb'),ft=document.getElementById('eFt');if(!tb)return;
+  const filtE=filtIEExpenses();
+  const sorted=[...filtE].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  tb.innerHTML=sorted.map((e,i)=>`<tr>
+    <td>${i+1}</td><td>${fmtD(e.date)}</td>
+    <td><span class="pill pa">${e.category||'—'}</span></td>
+    <td>${e.to||'—'}</td>
+    <td>${e.mode?'<span class="pill pgr">'+e.mode+'</span>':'—'}</td>
+    <td style="color:var(--muted);font-size:11px">${e.desc||'—'}</td>
+    <td style="text-align:right;font-weight:700;color:var(--red)">₹${fmt(e.amount)}</td>
+    <td style="white-space:nowrap"><button class="abtn ae" onclick="editExp('${e.id}')">✏️</button> <button class="abtn ad" onclick="delExp('${e.id}')">🗑</button></td>
+  </tr>`).join('');
+  const tot=filtE.reduce((a,e)=>a+(e.amount||0),0);
+  if(ft)ft.innerHTML=`<tr><td colspan="6" style="text-align:right">TOTAL EXPENSES</td><td style="text-align:right;color:var(--red)">₹${fmt(tot)}</td><td></td></tr>`;
+  st('eCnt',sorted.length);
+}
+async function saveExpense(){
+  if(!chk([['exp-d',v=>v!=='','Select date'],['exp-c',v=>v!=='','Select category'],['exp-a',v=>v!==''&&Number(v)>0,'Enter amount']])) return;
+  const eid=document.getElementById('exp-eid').value;
+  const data={date:g('exp-d'),category:g('exp-c'),amount:parseFloat(g('exp-a')),mode:g('exp-m'),to:g('exp-t').trim(),desc:g('exp-ds').trim(),
+    createdAt:eid?(expenses.find(e=>e.id===eid)?.createdAt||new Date().toISOString()):new Date().toISOString(),updatedAt:new Date().toISOString()};
+  const docId=eid||('EXP-'+Date.now());
+  showOv(eid?'Updating…':'Saving expense…');
+  try{await dbSetBranch('expenses',docId,data);showToast(eid?'✏️ Updated!':'📉 Expense saved — ₹'+fmt(data.amount));cancelExp();}
+  catch(e){showToast('❌ Save failed');}finally{hideOv();}
+}
+function editExp(id){
+  const e=expenses.find(x=>x.id===id);if(!e)return;
+  s('exp-eid',id);s('exp-d',e.date||'');s('exp-c',e.category||'');s('exp-a',e.amount||'');s('exp-m',e.mode||'');s('exp-t',e.to||'');s('exp-ds',e.desc||'');
+  st('exp-ft','✏️ Edit Expense');document.getElementById('exp-sb').textContent='✅ Update Expense';
+  switchIE('e',document.getElementById('iet-e'));
+  document.querySelector('#iep-e .fc').scrollIntoView({behavior:'smooth'});
+}
+function cancelExp(){
+  s('exp-eid','');['exp-c','exp-a','exp-m','exp-t','exp-ds'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  const d=document.getElementById('exp-d');if(d)d.value=new Date().toISOString().split('T')[0];
+  st('exp-ft','Add Expense');document.getElementById('exp-sb').textContent='✅ Save Expense';
+  document.querySelectorAll('#iep-e .field.error').forEach(f=>f.classList.remove('error'));
+}
+async function delExp(id){
+  if(!confirm('Delete this expense?'))return;showOv('Deleting…');
+  try{await dbDelBranch('expenses',id);showToast('🗑 Expense deleted');}catch(e){showToast('❌ Failed');}finally{hideOv();}
+}
+
+// === DASHBOARD ===
+function renderDash(){
+  const src=filtStu();
+  const tf=src.reduce((a,s)=>a+s.totalFees,0);
+  const tp=src.reduce((a,s)=>a+(s.feesPaid||0),0);
+  const tpend=tf-tp;
+  const pct=tf>0?Math.round(tp/tf*100):0;
+  st('kpi-s',src.length);st('kpi-c','₹'+fmt(tp));st('kpi-p','₹'+fmt(tpend));st('kpi-t','₹'+fmt(tf));
+  st('pPct',pct+'%');const pb=document.getElementById('pBar');if(pb)pb.style.width=pct+'%';
+  const pend=src.filter(s=>s.totalFees>(s.feesPaid||0));
+  const list=document.getElementById('pendList');if(!list)return;
+  // Show current branch tag
+  const dbt=document.getElementById('dashBranchTag');
+  if(dbt)dbt.textContent=branches[currentBranch]?.name||currentBranch;
+  if(pend.length===0){list.innerHTML='<div style="padding:18px;text-align:center;color:var(--green);font-weight:600">🎉 All students have cleared their fees!</div>';}
+  else{list.innerHTML=pend.map(s=>{
+    const amt=s.totalFees-(s.feesPaid||0);
+    const ini=s.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+    return`<div class="prow"><div class="av">${ini}</div><div class="pi"><div class="pn">${s.name}</div><div class="pc">${s.rollStr||s.formNo} · ${s.c1||s.cType}</div></div><div class="pa2">₹${fmt(amt)}</div></div>`;
+  }).join('');}
+  // pendancy table
+  const ptb=document.getElementById('pendTb'),ptf=document.getElementById('pendFt');
+  if(ptb)ptb.innerHTML=pend.map((s,i)=>{const a=s.totalFees-(s.feesPaid||0);return`<tr><td>${i+1}</td><td>${s.rollStr||'—'}</td><td>${s.formNo}</td><td>${s.name}</td><td>${s.c1||s.cType}</td><td>${fmtD(s.admDate)}</td><td>${s.contact}</td><td style="text-align:right">₹${fmt(s.totalFees)}</td><td style="text-align:right;color:var(--green)">₹${fmt(s.feesPaid||0)}</td><td style="text-align:right;color:var(--red);font-weight:700">₹${fmt(a)}</td><td>${(s.feesPaid||0)===0?'<span class="pill pa">Not Paid</span>':'<span class="pill pr">Pending</span>'}</td></tr>`;}).join('');
+  if(ptf)ptf.innerHTML=`<tr style="background:#F0F5FF;font-weight:700"><td colspan="7" style="text-align:right;padding:9px 14px;font-size:11px">TOTALS</td><td style="padding:9px 14px;text-align:right">₹${fmt(tf)}</td><td style="padding:9px 14px;text-align:right;color:var(--green)">₹${fmt(tp)}</td><td style="padding:9px 14px;text-align:right;color:var(--red)">₹${fmt(tpend)}</td><td></td></tr>`;
+}
+
+// === STUDENT TABLE ===
+function renderStuTbl(){
+  const tb=document.getElementById('sTb');if(!tb)return;
+  tb.innerHTML=students.map(s=>`<tr>
+    <td style="font-weight:700;color:var(--blue)">${s.rollStr||'—'}</td>
+    <td>${s.formNo}</td><td><strong>${s.name}</strong></td><td>${s.c1||s.cType}</td>
+    <td>${fmtD(s.admDate)}</td>
+    <td style="text-align:right">₹${fmt(s.totalFees)}</td>
+    <td style="text-align:right;color:var(--green)">₹${fmt(s.feesPaid||0)}</td>
+    <td style="text-align:right;color:var(--red)">₹${fmt(s.totalFees-(s.feesPaid||0))}</td>
+    <td>${spill(s.feesPaid||0,s.totalFees)}</td>
+    <td><button class="dbtn" onclick="delStu('${s.formNo}')">🗑</button></td>
+  </tr>`).join('');
+  st('sCnt',students.length);
+}
+
+// === RECEIPT TABLE ===
+function renderRecTbl(){
+  const tb=document.getElementById('rTb');if(!tb)return;
+  tb.innerHTML=receipts.map(r=>`<tr>
+    <td style="font-weight:700;color:var(--green)">${r.recNo||r.no||'—'}</td>
+    <td>${r.formNo}</td><td>${r.name}</td><td>${fmtD(r.date)}</td>
+    <td style="text-align:right;font-weight:600">₹${fmt(r.amount)}</td>
+    <td><span class="pill ${r.mode==='Cash'?'pa':'pb'}">${r.mode}</span></td>
+    <td>${r.ftype}</td>
+    <td><button class="dbtn" onclick="delRec('${r.id||r.recNo}')">🗑</button></td>
+  </tr>`).join('');
+  st('rCnt',receipts.length);
+}
+
+// === ALL RECORDS TAB ===
+function renderAllRec(){
+  const at=document.getElementById('asTb');
+  if(at)at.innerHTML=students.map(s=>`<tr>
+    <td style="font-weight:700;color:var(--blue)">${s.rollStr||'—'}</td>
+    <td>${s.formNo}</td><td><strong>${s.name}</strong></td><td>${s.contact}</td>
+    <td>${s.c1||s.cType}</td><td>${fmtD(s.admDate)}</td>
+    <td style="text-align:right">₹${fmt(s.totalFees)}</td>
+    <td style="text-align:right;color:var(--green)">₹${fmt(s.feesPaid||0)}</td>
+    <td style="text-align:right;color:var(--red)">₹${fmt(s.totalFees-(s.feesPaid||0))}</td>
+    <td>${spill(s.feesPaid||0,s.totalFees)}</td>
+  </tr>`).join('');
+  st('asCnt',students.length);
+  const rt=document.getElementById('arTb');
+  if(rt)rt.innerHTML=receipts.map(r=>`<tr>
+    <td style="font-weight:700;color:var(--green)">${r.recNo||r.no||'—'}</td>
+    <td>${r.formNo}</td><td>${r.name}</td><td>${fmtD(r.date)}</td>
+    <td style="text-align:right;font-weight:600">₹${fmt(r.amount)}</td>
+    <td><span class="pill ${r.mode==='Cash'?'pa':'pb'}">${r.mode}</span></td>
+    <td>${r.ftype}</td>
+  </tr>`).join('');
+  st('arCnt',receipts.length);
+}
+
+// === DELETE ===
+async function delStu(fno){if(!confirm('Delete '+fno+'?'))return;showOv('Deleting…');try{await dbDelBranch('students',fno);showToast('🗑 Removed');}catch(e){showToast('❌ Failed');}finally{hideOv();}}
+async function delRec(id){if(!confirm('Delete receipt?'))return;showOv('Deleting…');try{await dbDelBranch('receipts',String(id));showToast('🗑 Removed');}catch(e){showToast('❌ Failed');}finally{hideOv();}}
+
+// === CLEAR FORMS ===
+function clearSF(){
+  ['s_name','s_addr','s_dob','s_contact','s_fees'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  ['s_ctype','s_c1','s_c2','s_c3'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  document.getElementById('s_form').value='';
+  document.getElementById('s_admdate').value=new Date().toISOString().split('T')[0];
+  updateRoll();document.querySelectorAll('#panel-student .field.error').forEach(f=>f.classList.remove('error'));
+}
+function clearRF(){
+  ['r_form','r_mode','r_ftype','r_next','r_remarks'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  ['r_name','r_course'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  document.getElementById('r_amount').value='';
+  document.getElementById('r_date').value=new Date().toISOString().split('T')[0];
+  document.getElementById('r_no').value='';document.querySelectorAll('#panel-receipt .field.error').forEach(f=>f.classList.remove('error'));
+}
+
+// === DROPDOWNS ===
+function refreshDD(){
+  const opts=students.map(s=>`<option value="${s.formNo}">${s.rollStr||s.formNo} — ${s.name}</option>`).join('');
+  const el=document.getElementById('r_form');if(!el)return;
+  const cur=el.value;el.innerHTML='<option value="">— Select Student —</option>'+opts;el.value=cur;
+}
+
+// === PRINT & EXPORT ===
+function printRep(){
+  const ml=activeMonth==='all'?'All Months':activeMonth;
+  const dt=new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'long',year:'numeric'});
+  st('prs','Month: '+ml+'  |  Generated: '+dt);
+  st('prhBranch','Branch: '+(branches[currentBranch]?.name||currentBranch));
+  document.getElementById('pendTbl').style.display='table';
+  window.print();
+  setTimeout(()=>{document.getElementById('pendTbl').style.display='none';},1200);
+}
+function exportPendXL(){
+  const src=filtStu().filter(s=>s.totalFees>(s.feesPaid||0));
+  const ml=activeMonth==='all'?'All Months':activeMonth;
+  if(src.length===0){showToast('No pending fees!');return;}
+  const rows=[['COMPUTER INSTITUTE — FEES PENDANCY REPORT'],['Branch: '+(branches[currentBranch]?.name||currentBranch)+'  |  Month: '+ml+'  |  Generated: '+new Date().toLocaleDateString('en-IN')],[],
+    ['#','Roll No','Form No','Student Name','Course','Adm. Date','Contact','Total (₹)','Paid (₹)','Pending (₹)','Status']];
+  src.forEach((s,i)=>{const p=s.totalFees-(s.feesPaid||0);rows.push([i+1,s.rollStr||'',s.formNo,s.name,s.c1||s.cType,fmtD(s.admDate),s.contact,s.totalFees,s.feesPaid||0,p,(s.feesPaid||0)===0?'Not Paid':'Pending']);});
+  rows.push([],['','','','','','','TOTALS',src.reduce((a,s)=>a+s.totalFees,0),src.reduce((a,s)=>a+(s.feesPaid||0),0),src.reduce((a,s)=>a+(s.totalFees-(s.feesPaid||0)),0),'']);
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:4},{wch:9},{wch:9},{wch:26},{wch:20},{wch:12},{wch:13},{wch:11},{wch:10},{wch:11},{wch:11}];
+  ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:10}},{s:{r:1,c:0},e:{r:1,c:10}}];
+  const wb2=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb2,ws,'Pendancy');
+  XLSX.writeFile(wb2,'FeePendancy_'+ml.replace(/\s/g,'_')+'.xlsx');showToast('📊 Excel exported!');
+}
+function xCSV(type){
+  let csv='',name='';
+  if(type==='students'){name='Students.csv';csv='Roll No,Form No,Month,Name,Contact,Adm.Date,Course,Total Fees,Fees Paid,Fees Pending\n';csv+=students.map(s=>[s.rollStr||'',s.formNo,s.month,'"'+s.name+'"',s.contact,s.admDate,s.c1||s.cType,s.totalFees,s.feesPaid||0,s.totalFees-(s.feesPaid||0)].join(',')).join('\n');}
+  else if(type==='receipts'){name='Receipts.csv';csv='Receipt No,Form No,Student,Date,Amount,Mode,Type\n';csv+=receipts.map(r=>[r.recNo||'',r.formNo,'"'+r.name+'"',r.date,r.amount,r.mode,r.ftype].join(',')).join('\n');}
+  else if(type==='income'){name='Income.csv';csv='Date,Category,From,Mode,Description,Amount\n';const fi=receipts.map(r=>[r.date,r.ftype||'Course Fee','"'+r.name+'"',r.mode,r.recNo||'',r.amount]);const mi=incomes.map(i=>[i.date,i.category,'"'+(i.from||'')+'"',i.mode,'"'+(i.desc||'')+'"',i.amount]);csv+=[...fi,...mi].map(r=>r.join(',')).join('\n');}
+  else{name='Expenses.csv';csv='Date,Category,Paid To,Mode,Description,Amount\n';csv+=expenses.map(e=>[e.date,e.category,'"'+(e.to||'')+'"',e.mode,'"'+(e.desc||'')+'"',e.amount].join(',')).join('\n');}
+  const blob=new Blob([csv],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();showToast('⬇️ '+name);
+}
+
+// === VALIDATION ===
+function chk(rules){
+  let ok=true;
+  rules.forEach(([id,test,msg])=>{
+    const el=document.getElementById(id);if(!el)return;
+    const field=el.closest('.field');const em=field?.querySelector('.err-msg');
+    if(!test(el.value)){field?.classList.add('error');if(em)em.textContent=msg;ok=false;}
+    else{field?.classList.remove('error');}
+  });
+  return ok;
+}
+
+// === HELPERS ===
+function fmt(n){return(n||0).toLocaleString('en-IN');}
+function fmtD(d){if(!d)return'';try{return new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});}catch{return d;}}
+function spill(paid,total){const p=total-paid;if(p<=0&&paid>0)return'<span class="pill pg">✅ Full Paid</span>';if(paid===0)return'<span class="pill pa">⚪ Not Paid</span>';return'<span class="pill pr">🔴 Pending</span>';}
+function st(id,val){const e=document.getElementById(id);if(e)e.textContent=val;}
+function g(id){const e=document.getElementById(id);return e?e.value:'';}
+function s(id,val){const e=document.getElementById(id);if(e)e.value=val;}
+
+// === RULES HELP POPUP ===
+function showRulesHelp(){
+  if(document.getElementById('rp'))return;
+  const d=document.createElement('div');d.id='rp';d.className='rpop';
+  d.innerHTML=`<div style="font-weight:800;font-size:15px;margin-bottom:8px">🔒 Firebase Connection Error</div>
+<div style="color:#aac4ff;font-size:12px;margin-bottom:10px">Go to <strong>Firebase Console → Firestore Database → Rules</strong> and set:</div>
+<pre style="background:#0d1b2e;padding:10px;border-radius:7px;font-size:10px;color:#7dd3fc;overflow-x:auto">rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}</pre>
+<div style="color:#7dc8ff;font-size:10px;margin-top:6px">📌 Data is stored under <code>/branches/{branchId}/{collection}</code> in Firestore.</div>
+<div style="color:#fbbf24;font-size:10px;margin-top:6px">⚠️ Open access — add auth later for production use.</div>
+<button onclick="document.getElementById('rp').remove()" style="margin-top:10px;padding:6px 16px;background:#3B9EFF;color:#fff;border:none;border-radius:7px;cursor:pointer;font-weight:700;font-size:12px;font-family:var(--f)">Got it ✓</button>`;
+  document.body.appendChild(d);
+}
+
+// === TOAST ===
+function showToast(msg){
+  const t=document.getElementById('toast');document.getElementById('tMsg').textContent=msg;
+  t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3200);
+}
+</script>
+</body>
+</html>
